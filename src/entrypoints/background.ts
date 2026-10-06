@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { evaluateAlerts } from '../lib/alerts';
+import { API_BASE, applyLiveUsage, pickOrgId } from '../lib/live';
 import { type Alert, STORAGE_KEYS, USAGE_URL } from '../lib/model';
 import { getActiveAlerts, getSettings, getSnapshots, saveSnapshot } from '../lib/store';
 import { validateSnapshot } from '../lib/validate';
@@ -47,7 +48,36 @@ async function onObserved(raw: unknown): Promise<void> {
   });
 }
 
-// Refresco automático: abre la vista de uso en una pestaña inactiva para que el
+// Lectura en vivo cada minuto desde la API que usa la propia vista de uso, con
+// la sesión del navegador. Requiere una lectura previa de la página como base.
+async function fetchJson(path: string): Promise<unknown> {
+  const r = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers: { accept: 'application/json' } });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+
+async function liveRefresh(): Promise<void> {
+  const settings = await getSettings();
+  if (settings.autoRefreshMinutes <= 0 || settings.activeSource !== 'observed') return;
+  const { observed } = await getSnapshots();
+  if (!observed) return;
+  const r = await browser.storage.local.get(STORAGE_KEYS.liveOrg);
+  let org = typeof r[STORAGE_KEYS.liveOrg] === 'string' ? (r[STORAGE_KEYS.liveOrg] as string) : null;
+  try {
+    if (!org) {
+      org = pickOrgId(await fetchJson('/organizations'));
+      if (!org) return;
+      await browser.storage.local.set({ [STORAGE_KEYS.liveOrg]: org });
+    }
+    const snap = applyLiveUsage(observed, await fetchJson(`/organizations/${org}/usage`), new Date());
+    if (snap) await onObserved(snap);
+  } catch {
+    // Sesión cerrada o cuenta cambiada: se vuelve a resolver la organización.
+    await browser.storage.local.remove(STORAGE_KEYS.liveOrg);
+  }
+}
+
+// Respaldo si la lectura en vivo falla: abre la vista de uso en una pestaña inactiva para que el
 // content script la lea con el mismo lector acotado, y la cierra al terminar.
 const REFRESH_TIMEOUT_MS = 90_000;
 const REFRESH_PARTIAL_MS = 20_000;
@@ -117,7 +147,8 @@ export default defineBackground(() => {
   browser.alarms.onAlarm.addListener((a) => {
     if (a.name === TICK) {
       void updateBadge();
-      void autoRefresh();
+      // Primero en vivo; el respaldo por pestaña solo actúa si el dato quedó viejo.
+      void liveRefresh().then(autoRefresh);
     }
   });
 

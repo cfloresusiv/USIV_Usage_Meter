@@ -11,13 +11,13 @@ Hecha por [USIV](https://usiv.cl). Herramienta independiente: no está afiliada,
 | Hace | No hace |
 | --- | --- |
 | Lee las cifras visibles en **Configuración › Uso** de claude.ai cuando tú abres esa vista | No lee conversaciones, proyectos ni archivos |
-| Muestra la última lectura en el panel, el popup y el badge del icono (porcentaje de la sesión) | No usa APIs internas, cookies ni tokens de sesión |
-| Se **actualiza solo** cada 10 minutos (configurable, 0 = nunca) abriendo la vista de uso en una pestaña inactiva que se cierra tras leerla | No consulta APIs en segundo plano |
+| Muestra la última lectura en el panel, el popup y el badge del icono (porcentaje de la sesión) | No lee cookies ni tokens de sesión |
+| Se **actualiza en vivo** cada minuto consultando la misma API de uso que llama la vista de uso de claude.ai (solo porcentajes y horas de reinicio). Si falla, cada 10 minutos (configurable, 0 = desactiva ambas) abre la vista de uso en una pestaña inactiva que se cierra tras leerla | No consulta otras APIs ni intercepta solicitudes de la página |
 | Marca el dato como **Desactualizado** pasados 15 minutos (configurable) | |
 | Avisa al cruzar umbrales (50/80/100 % por defecto), una vez por período | No envía datos a ningún servidor; no tiene telemetría |
 | Permite ingreso **manual** y un modo **Demo** separado y etiquetado | No convierte el uso del plan en dinero ni inventa ceros |
 
-Fuera de la página de uso lo que ves es la **última observación**, no una medición continua. Cuando vence la hora de reinicio se muestra *Reinicio pendiente de verificar* en vez de volver a 0 %.
+Plan, créditos y reparto por producto se toman de la última lectura de la página; la lectura en vivo necesita haber abierto la vista de uso al menos una vez. Cuando vence la hora de reinicio se muestra *Reinicio pendiente de verificar* en vez de volver a 0 %.
 
 ## Instalación para desarrollo
 
@@ -53,8 +53,8 @@ Con recarga en caliente: `npm run dev` (Chrome) o `npm run dev:firefox`.
 | Permiso | Motivo |
 | --- | --- |
 | `storage` | Guardar en este navegador las cifras leídas y tus preferencias |
-| `alarms` | Recalcular cada minuto si el dato está desactualizado (badge) y programar el refresco automático |
-| `https://claude.ai/*` | Mostrar el panel y leer la vista de uso |
+| `alarms` | Cada minuto: consultar el uso en vivo, recalcular si el dato está desactualizado (badge) y programar el refresco de respaldo |
+| `https://claude.ai/*` | Mostrar el panel, leer la vista de uso y consultar `claude.ai/api/organizations` (id de la cuenta) y `.../usage` (porcentajes) con la sesión del navegador |
 
 No se solicitan `tabs`, `cookies`, `<all_urls>`, historial ni portapapeles.
 

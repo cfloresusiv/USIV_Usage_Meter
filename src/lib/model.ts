@@ -113,6 +113,7 @@ export const STORAGE_KEYS = {
   alertsFired: 'alerts:fired',
   alertsActive: 'alerts:active',
   refresh: 'refresh:tab',
+  liveOrg: 'live:org',
   snap: (s: SourceKind) => `snap:${s}` as const,
 } as const;
 

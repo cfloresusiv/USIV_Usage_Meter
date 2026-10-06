@@ -95,6 +95,7 @@ export async function clearData(): Promise<void> {
     STORAGE_KEYS.alertsFired,
     STORAGE_KEYS.alertsActive,
     STORAGE_KEYS.panel,
+    STORAGE_KEYS.liveOrg,
   ]);
   await patchSettings({ activeSource: 'observed' });
 }

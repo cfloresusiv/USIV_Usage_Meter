@@ -18,6 +18,8 @@ Cuando abres la vista **Configuración › Uso** de claude.ai, la extensión lee
 - saldos y límites de créditos que aparezcan en esa vista;
 - porcentaje de uso semanal por producto, si aparece.
 
+Además, cada minuto consulta directamente a claude.ai, con la sesión ya iniciada en tu navegador, `claude.ai/api/organizations` (solo para obtener el identificador de tu cuenta, que se guarda localmente) y `claude.ai/api/organizations/{id}/usage` (porcentajes y horas de reinicio de la sesión y la semana). Estas solicitudes van solo a claude.ai, igual que cuando abres la vista de uso.
+
 **No lee** conversaciones, prompts, archivos, proyectos, nombres, correos, cookies ni tokens de sesión, ni interviene las solicitudes de red de la página.
 
 ## Dónde se guardan
@@ -31,8 +33,8 @@ En las opciones de la extensión, usa **Borrar datos / cambiar cuenta**. Al desi
 ## Permisos
 
 - `storage`: guardar localmente lo descrito arriba.
-- `alarms`: recalcular cada minuto si el dato está desactualizado y, si el refresco automático está activo, abrir la vista de uso en una pestaña inactiva que se cierra tras leerla.
-- Acceso a `https://claude.ai/*`: mostrar el panel y leer la vista de uso.
+- `alarms`: cada minuto, consultar el uso en vivo y recalcular si el dato está desactualizado; si la consulta falla y el refresco automático está activo, abrir la vista de uso en una pestaña inactiva que se cierra tras leerla.
+- Acceso a `https://claude.ai/*`: mostrar el panel, leer la vista de uso y hacer las consultas de uso descritas arriba.
 
 ## Enlaces externos
 
