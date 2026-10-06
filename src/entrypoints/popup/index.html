@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>USIV Usage Meter</title>
+    <meta name="manifest.type" content="browser_action" />
+  </head>
+  <body>
+    <div id="app" class="usiv-theme" data-theme="auto">
+      <header class="pop-head">
+        <img src="/icon/48.png" alt="" />
+        <span data-i18n="extName">USIV Usage Meter</span>
+      </header>
+      <section id="perm" class="perm" hidden>
+        <p data-i18n="permNeeded"></p>
+        <button type="button" id="grant" class="primary-btn" data-i18n="permGrant"></button>
+      </section>
+      <main id="summary"></main>
+      <nav class="pop-actions">
+        <button type="button" id="open" class="primary-btn" data-i18n="openUsage"></button>
+        <button type="button" id="toggle" class="secondary-btn"></button>
+        <button type="button" id="options" class="secondary-btn" data-i18n="settings"></button>
+      </nav>
+      <footer id="foot"></footer>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

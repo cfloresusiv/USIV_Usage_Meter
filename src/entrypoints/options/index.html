@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>USIV Usage Meter</title>
+    <meta name="manifest.open_in_tab" content="true" />
+  </head>
+  <body>
+    <div id="app" class="usiv-theme" data-theme="auto">
+      <header class="opt-head">
+        <img src="/icon/128.png" alt="" />
+        <div>
+          <h1 data-i18n="extName">USIV Usage Meter</h1>
+          <p data-i18n="extDescription"></p>
+        </div>
+      </header>
+
+      <main>
+        <section class="card">
+          <h2 data-i18n="howTitle"></h2>
+          <ol>
+            <li data-i18n="how1"></li>
+            <li data-i18n="how2"></li>
+            <li data-i18n="how3"></li>
+          </ol>
+          <p class="muted" data-i18n="howLimits"></p>
+          <button type="button" id="open" class="primary-btn" data-i18n="openUsage"></button>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="sourceTitle"></h2>
+          <div class="radios" id="sources">
+            <label><input type="radio" name="source" value="observed" /> <span data-i18n="sourceObserved"></span></label>
+            <label><input type="radio" name="source" value="manual" /> <span data-i18n="sourceManual"></span></label>
+            <label><input type="radio" name="source" value="demo" /> <span data-i18n="sourceDemo"></span></label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="manualTitle"></h2>
+          <p class="muted" data-i18n="manualHelp"></p>
+          <form id="manual" class="grid">
+            <label><span data-i18n="fieldPlan"></span><input name="plan" maxlength="40" placeholder="Pro" /></label>
+            <span></span>
+            <label><span data-i18n="fieldSession"></span><input name="session" type="number" min="0" max="100" step="1" /></label>
+            <label><span data-i18n="fieldSessionReset"></span><input name="sessionReset" type="datetime-local" /></label>
+            <label><span data-i18n="fieldWeekly"></span><input name="weekly" type="number" min="0" max="100" step="1" /></label>
+            <label><span data-i18n="fieldWeeklyReset"></span><input name="weeklyReset" type="datetime-local" /></label>
+            <div class="row-actions">
+              <button type="submit" class="primary-btn" data-i18n="saveManual"></button>
+              <span id="manualMsg" class="muted" role="status"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="prefsTitle"></h2>
+          <form id="prefs" class="grid">
+            <label class="check"><input type="checkbox" name="panelEnabled" /> <span data-i18n="prefPanel"></span></label>
+            <label>
+              <span data-i18n="prefTheme"></span>
+              <select name="theme">
+                <option value="auto" data-i18n="themeAuto"></option>
+                <option value="light" data-i18n="themeLight"></option>
+                <option value="dark" data-i18n="themeDark"></option>
+              </select>
+            </label>
+            <label><span data-i18n="prefStale"></span><input name="staleMinutes" type="number" min="1" max="1440" /></label>
+            <label><span data-i18n="prefThresholds"></span><input name="thresholds" placeholder="50, 80, 100" /></label>
+            <label class="check"><input type="checkbox" name="manualAlerts" /> <span data-i18n="prefManualAlerts"></span></label>
+            <div class="row-actions">
+              <button type="submit" class="primary-btn" data-i18n="save"></button>
+              <span id="prefsMsg" class="muted" role="status"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="dataTitle"></h2>
+          <p class="muted" data-i18n="privacyShort"></p>
+          <div class="row-actions">
+            <button type="button" id="export" class="secondary-btn" data-i18n="exportJson"></button>
+            <button type="button" id="clear" class="secondary-btn danger" data-i18n="clearData"></button>
+            <span id="dataMsg" class="muted" role="status"></span>
+          </div>
+        </section>
+
+        <section class="card about">
+          <img src="/icon/128.png" alt="USIV" />
+          <div>
+            <h2 data-i18n="aboutTitle"></h2>
+            <p data-i18n="aboutText"></p>
+            <p class="muted" data-i18n="disclaimer"></p>
+            <p class="links">
+              <a id="usivLink" target="_blank" rel="noopener noreferrer">usiv.cl</a> ·
+              <a id="repoLink" target="_blank" rel="noopener noreferrer" data-i18n="sourceCode"></a> ·
+              <span id="version" class="muted"></span>
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

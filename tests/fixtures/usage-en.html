@@ -1,0 +1,20 @@
+<!-- SYNTHETIC FIXTURE: English variant of the usage view structure, with a weekly
+     limit lacking aria-valuenow (must be reported as unavailable, never 0). -->
+<main>
+  <div><h1>Your usage</h1><span>Max 5x</span></div>
+  <div>
+    <div><span id="a">Current session</span><span>Resets in 3 hr 20 min</span></div>
+    <div role="progressbar" aria-valuenow="64" aria-valuemax="100" aria-labelledby="a"></div>
+    <span>64% used</span>
+  </div>
+  <div>
+    <div><span id="b">Weekly limit</span><span>Resets Mon 9:00 AM</span></div>
+    <div role="progressbar" aria-valuemax="100" aria-labelledby="b"></div>
+  </div>
+  <div>
+    <h2>Usage credits</h2>
+    <div>US$ 1,234.56</div>
+    <h3>Monthly spend limit</h3>
+    <p>US$ 3.10 of US$ 50 this month</p>
+  </div>
+</main>

@@ -1,0 +1,236 @@
+{
+  "extName": {
+    "message": "USIV Usage Meter"
+  },
+  "extDescription": {
+    "message": "Ve el uso de tu plan de Claude (sesión, semana y créditos) en un panel flotante. Privado: nada sale de tu navegador."
+  },
+  "durDaysHours": {
+    "message": "$1 d $2 h"
+  },
+  "durHoursMinutes": {
+    "message": "$1 h $2 min"
+  },
+  "durMinutes": {
+    "message": "$1 min"
+  },
+  "resetPending": {
+    "message": "Reinicio pendiente de verificar"
+  },
+  "resetsIn": {
+    "message": "Reinicia en $1"
+  },
+  "notAvailable": {
+    "message": "No disponible"
+  },
+  "tagObserved": {
+    "message": "Observado en página"
+  },
+  "tagManual": {
+    "message": "Manual"
+  },
+  "tagDemo": {
+    "message": "Demo"
+  },
+  "tagStale": {
+    "message": "Desactualizado"
+  },
+  "tagPartial": {
+    "message": "Parcial"
+  },
+  "alertReached": {
+    "message": "$1 llegó al $2 %"
+  },
+  "monthlySpend": {
+    "message": "Gasto mensual"
+  },
+  "dismiss": {
+    "message": "Descartar"
+  },
+  "creditRemaining": {
+    "message": "Quedan $1 de $2"
+  },
+  "usageCredits": {
+    "message": "Créditos de uso"
+  },
+  "usageCreditsBalance": {
+    "message": "Saldo"
+  },
+  "spentOf": {
+    "message": "$1 de $2"
+  },
+  "byProduct": {
+    "message": "Uso semanal por producto"
+  },
+  "newerObserved": {
+    "message": "Hay una observación más reciente."
+  },
+  "useObserved": {
+    "message": "Usarla"
+  },
+  "emptyObserved": {
+    "message": "Sin datos aún. Abre la página de uso de Claude con tu sesión iniciada para leer tus cifras."
+  },
+  "emptyManual": {
+    "message": "No hay datos manuales. Ingrésalos en Configuración."
+  },
+  "openUsage": {
+    "message": "Abrir uso de Claude"
+  },
+  "updatedAgo": {
+    "message": "Actualizado $1"
+  },
+  "refreshNow": {
+    "message": "Actualizar"
+  },
+  "madeBy": {
+    "message": "Hecho por"
+  },
+  "expand": {
+    "message": "Expandir panel"
+  },
+  "minimize": {
+    "message": "Minimizar"
+  },
+  "closePanel": {
+    "message": "Cerrar panel (se reabre desde el icono)"
+  },
+  "permNeeded": {
+    "message": "Para leer tu uso, permite el acceso a claude.ai."
+  },
+  "permGrant": {
+    "message": "Permitir acceso a claude.ai"
+  },
+  "settings": {
+    "message": "Configuración"
+  },
+  "hidePanel": {
+    "message": "Ocultar panel"
+  },
+  "showPanel": {
+    "message": "Mostrar panel"
+  },
+  "howTitle": {
+    "message": "Cómo funciona"
+  },
+  "how1": {
+    "message": "Inicia sesión en claude.ai y abre Configuración › Uso (botón de abajo)."
+  },
+  "how2": {
+    "message": "La extensión lee solo las cifras de esa vista: porcentajes, reinicios y créditos."
+  },
+  "how3": {
+    "message": "El panel flotante y el icono muestran la última lectura mientras trabajas."
+  },
+  "howLimits": {
+    "message": "Fuera de la página de uso se muestra la última observación, no una medición continua; tras unos minutos se marca como desactualizada. No se leen conversaciones, no se usan APIs internas y nada sale de tu navegador."
+  },
+  "sourceTitle": {
+    "message": "Fuente de datos"
+  },
+  "sourceObserved": {
+    "message": "Observada en claude.ai"
+  },
+  "sourceManual": {
+    "message": "Manual"
+  },
+  "sourceDemo": {
+    "message": "Demo (cifras ficticias)"
+  },
+  "manualTitle": {
+    "message": "Ingreso manual"
+  },
+  "manualHelp": {
+    "message": "Úsalo si la lectura automática no está disponible. Deja vacío lo que no sepas: se mostrará como no disponible, nunca como 0."
+  },
+  "fieldPlan": {
+    "message": "Plan"
+  },
+  "fieldSession": {
+    "message": "Sesión actual (%)"
+  },
+  "fieldSessionReset": {
+    "message": "Reinicio de sesión"
+  },
+  "fieldWeekly": {
+    "message": "Semana (%)"
+  },
+  "fieldWeeklyReset": {
+    "message": "Reinicio semanal"
+  },
+  "saveManual": {
+    "message": "Guardar y usar manual"
+  },
+  "prefsTitle": {
+    "message": "Preferencias"
+  },
+  "prefPanel": {
+    "message": "Mostrar panel flotante en claude.ai"
+  },
+  "prefTheme": {
+    "message": "Tema"
+  },
+  "themeAuto": {
+    "message": "Automático"
+  },
+  "themeLight": {
+    "message": "Claro"
+  },
+  "themeDark": {
+    "message": "Oscuro"
+  },
+  "prefStale": {
+    "message": "Marcar desactualizado tras (minutos)"
+  },
+  "prefThresholds": {
+    "message": "Umbrales de alerta (%)"
+  },
+  "prefManualAlerts": {
+    "message": "Generar alertas también con datos manuales"
+  },
+  "save": {
+    "message": "Guardar"
+  },
+  "saved": {
+    "message": "Guardado"
+  },
+  "dataTitle": {
+    "message": "Tus datos"
+  },
+  "privacyShort": {
+    "message": "Todo se guarda solo en este navegador (almacenamiento local de la extensión). Sin cuentas, sin telemetría, sin servidores."
+  },
+  "exportJson": {
+    "message": "Exportar JSON"
+  },
+  "clearData": {
+    "message": "Borrar datos / cambiar cuenta"
+  },
+  "clearConfirm": {
+    "message": "¿Seguro? Haz clic de nuevo"
+  },
+  "cleared": {
+    "message": "Datos borrados"
+  },
+  "aboutTitle": {
+    "message": "Acerca de"
+  },
+  "aboutText": {
+    "message": "Herramienta gratuita de USIV: asesorías tecnológicas en desarrollo web, aplicaciones móviles y emprendimiento. Transformamos ideas en soluciones digitales innovadoras."
+  },
+  "disclaimer": {
+    "message": "Herramienta independiente. No está afiliada, patrocinada ni respaldada por Anthropic. Claude es una marca de Anthropic."
+  },
+  "sourceCode": {
+    "message": "Código fuente"
+  },
+  "demoSession": {
+    "message": "Sesión actual"
+  },
+  "demoWeekly": {
+    "message": "Esta semana"
+  },
+  "demoCredit": {
+    "message": "Crédito incluido"
+  }
+}
