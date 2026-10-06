@@ -179,6 +179,9 @@
   "themeDark": {
     "message": "Dark"
   },
+  "prefAutoRefresh": {
+    "message": "Refresh automatically every (minutes, 0 = never)"
+  },
   "prefStale": {
     "message": "Mark as stale after (minutes)"
   },

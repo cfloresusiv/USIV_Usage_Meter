@@ -76,6 +76,8 @@ export interface Settings {
   panelEnabled: boolean;
   theme: Theme;
   staleMinutes: number;
+  /** Cada cuántos minutos releer la vista de uso en una pestaña inactiva (0 = nunca). */
+  autoRefreshMinutes: number;
   thresholds: number[];
   activeSource: SourceKind;
   manualAlerts: boolean;
@@ -85,6 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   panelEnabled: true,
   theme: 'auto',
   staleMinutes: 15,
+  autoRefreshMinutes: 10,
   thresholds: [50, 80, 100],
   activeSource: 'observed',
   manualAlerts: false,
@@ -109,6 +112,7 @@ export const STORAGE_KEYS = {
   panel: 'panel',
   alertsFired: 'alerts:fired',
   alertsActive: 'alerts:active',
+  refresh: 'refresh:tab',
   snap: (s: SourceKind) => `snap:${s}` as const,
 } as const;
 

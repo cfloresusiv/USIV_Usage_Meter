@@ -179,6 +179,9 @@
   "themeDark": {
     "message": "Oscuro"
   },
+  "prefAutoRefresh": {
+    "message": "Actualizar automáticamente cada (minutos, 0 = nunca)"
+  },
   "prefStale": {
     "message": "Marcar desactualizado tras (minutos)"
   },

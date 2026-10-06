@@ -26,6 +26,11 @@ export function sanitizeSettings(v: unknown): Settings {
     panelEnabled: s.panelEnabled !== false,
     theme: s.theme === 'light' || s.theme === 'dark' ? s.theme : 'auto',
     staleMinutes: Number.isFinite(s.staleMinutes) ? Math.min(Math.max(s.staleMinutes, 1), 1440) : 15,
+    autoRefreshMinutes: !Number.isFinite(s.autoRefreshMinutes)
+      ? DEFAULT_SETTINGS.autoRefreshMinutes
+      : s.autoRefreshMinutes <= 0
+        ? 0
+        : Math.min(Math.max(Math.round(s.autoRefreshMinutes), 2), 1440),
     thresholds: thresholds.length ? thresholds : DEFAULT_SETTINGS.thresholds,
     activeSource: SOURCES.includes(s.activeSource) ? s.activeSource : 'observed',
     manualAlerts: s.manualAlerts === true,

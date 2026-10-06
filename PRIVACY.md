@@ -31,7 +31,7 @@ En las opciones de la extensión, usa **Borrar datos / cambiar cuenta**. Al desi
 ## Permisos
 
 - `storage`: guardar localmente lo descrito arriba.
-- `alarms`: recalcular cada minuto si el dato está desactualizado.
+- `alarms`: recalcular cada minuto si el dato está desactualizado y, si el refresco automático está activo, abrir la vista de uso en una pestaña inactiva que se cierra tras leerla.
 - Acceso a `https://claude.ai/*`: mostrar el panel y leer la vista de uso.
 
 ## Enlaces externos
@@ -52,4 +52,4 @@ When you open **Settings › Usage** on claude.ai, it reads only the aggregate f
 
 The data is stored in the extension's local storage on your device only. You can delete it at any time with **Clear data / switch account** in the extension options, and uninstalling the extension removes it.
 
-Permissions: `storage` (local storage), `alarms` (recompute staleness every minute), and access to `https://claude.ai/*` (show the panel and read the usage view).
+Permissions: `storage` (local storage), `alarms` (recompute staleness every minute and, when auto-refresh is on, open the usage view in an inactive tab that closes after reading it), and access to `https://claude.ai/*` (show the panel and read the usage view).

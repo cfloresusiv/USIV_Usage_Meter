@@ -47,6 +47,58 @@ async function onObserved(raw: unknown): Promise<void> {
   });
 }
 
+// Refresco automático: abre la vista de uso en una pestaña inactiva para que el
+// content script la lea con el mismo lector acotado, y la cierra al terminar.
+const REFRESH_TIMEOUT_MS = 90_000;
+const REFRESH_PARTIAL_MS = 20_000;
+
+interface RefreshState {
+  tabId: number | null;
+  startedAt: number;
+}
+
+async function getRefreshState(): Promise<RefreshState | null> {
+  const r = await browser.storage.local.get(STORAGE_KEYS.refresh);
+  const v = r[STORAGE_KEYS.refresh] as Partial<RefreshState> | undefined;
+  if (typeof v?.startedAt !== 'number') return null;
+  return { tabId: typeof v.tabId === 'number' ? v.tabId : null, startedAt: v.startedAt };
+}
+
+async function finishRefresh(state: RefreshState): Promise<void> {
+  await browser.storage.local.set({ [STORAGE_KEYS.refresh]: { tabId: null, startedAt: state.startedAt } });
+  if (state.tabId !== null) await browser.tabs.remove(state.tabId).catch(() => {});
+}
+
+async function autoRefresh(): Promise<void> {
+  const state = await getRefreshState();
+  const now = Date.now();
+  if (state?.tabId != null) {
+    if (now - state.startedAt > REFRESH_TIMEOUT_MS) await finishRefresh(state);
+    return;
+  }
+  const settings = await getSettings();
+  if (settings.autoRefreshMinutes <= 0 || settings.activeSource !== 'observed') return;
+  const interval = settings.autoRefreshMinutes * 60_000;
+  // Reintentos espaciados aunque la lectura falle (p. ej. sesión cerrada).
+  if (state && now - state.startedAt < interval) return;
+  const { observed } = await getSnapshots();
+  // Sin una lectura previa no se fuerza la apertura (el usuario aún no inició sesión).
+  if (!observed || now - new Date(observed.observedAt).getTime() < interval) return;
+  try {
+    const tab = await browser.tabs.create({ url: USAGE_URL, active: false });
+    await browser.storage.local.set({ [STORAGE_KEYS.refresh]: { tabId: tab.id ?? null, startedAt: now } });
+  } catch {
+    await browser.storage.local.set({ [STORAGE_KEYS.refresh]: { tabId: null, startedAt: now } });
+  }
+}
+
+/** Cierra la pestaña de refresco cuando ya entregó una lectura. */
+async function onRefreshObserved(tabId: number | undefined, coverage: unknown): Promise<void> {
+  const state = await getRefreshState();
+  if (!state || state.tabId === null || state.tabId !== tabId) return;
+  if (coverage === 'complete' || Date.now() - state.startedAt > REFRESH_PARTIAL_MS) await finishRefresh(state);
+}
+
 async function openUsage(): Promise<void> {
   await browser.tabs.create({ url: USAGE_URL });
 }
@@ -63,7 +115,10 @@ export default defineBackground(() => {
   });
 
   browser.alarms.onAlarm.addListener((a) => {
-    if (a.name === TICK) void updateBadge();
+    if (a.name === TICK) {
+      void updateBadge();
+      void autoRefresh();
+    }
   });
 
   browser.storage.onChanged.addListener((changes, area) => {
@@ -77,7 +132,10 @@ export default defineBackground(() => {
     const type = (msg as { type?: unknown }).type;
     if (type === 'observed') {
       if (!(sender.url ?? sender.tab?.url ?? '').startsWith('https://claude.ai/')) return;
-      return onObserved((msg as { snapshot?: unknown }).snapshot);
+      const snapshot = (msg as { snapshot?: unknown }).snapshot;
+      return onObserved(snapshot).then(() =>
+        onRefreshObserved(sender.tab?.id, (snapshot as { coverage?: unknown } | null)?.coverage),
+      );
     }
     if (type === 'openUsage') return openUsage();
   });

@@ -42,6 +42,7 @@ async function load(): Promise<void> {
   field<HTMLInputElement>('prefs', 'panelEnabled').checked = settings.panelEnabled;
   field<HTMLSelectElement>('prefs', 'theme').value = settings.theme;
   field<HTMLInputElement>('prefs', 'staleMinutes').value = String(settings.staleMinutes);
+  field<HTMLInputElement>('prefs', 'autoRefreshMinutes').value = String(settings.autoRefreshMinutes);
   field<HTMLInputElement>('prefs', 'thresholds').value = settings.thresholds.join(', ');
   field<HTMLInputElement>('prefs', 'manualAlerts').checked = settings.manualAlerts;
 
@@ -112,6 +113,7 @@ $('prefs').addEventListener('submit', async (e) => {
     panelEnabled: fd.get('panelEnabled') === 'on',
     theme: fd.get('theme') as 'auto' | 'light' | 'dark',
     staleMinutes: Number(fd.get('staleMinutes')),
+    autoRefreshMinutes: Number(fd.get('autoRefreshMinutes')),
     thresholds,
     manualAlerts: fd.get('manualAlerts') === 'on',
   });
