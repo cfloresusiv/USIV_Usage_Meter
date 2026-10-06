@@ -23,17 +23,15 @@ export default defineContentScript({
     let observer: MutationObserver | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let lastSig = '';
-    let lastSent = 0;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
 
     const read = () => {
       const snap = parseUsage(document, new Date(), { exclude: panel.host });
       if (!snap) return;
       const sig = signature(snap);
-      // Datos idénticos: solo renovar la hora de observación una vez por minuto.
-      if (sig === lastSig && Date.now() - lastSent < 60_000) return;
+      // Datos idénticos no se reenvían: una pestaña abierta sin recargar no debe
+      // presentar datos viejos como recientes ni pisar lecturas más nuevas.
+      if (sig === lastSig) return;
       lastSig = sig;
-      lastSent = Date.now();
       void browser.runtime.sendMessage({ type: 'observed', snapshot: snap }).catch(() => {});
     };
 
@@ -57,13 +55,11 @@ export default defineContentScript({
           attributes: true,
           attributeFilter: ['aria-valuenow', 'aria-valuetext'],
         });
-        heartbeat = setInterval(schedule, 60_000);
         schedule();
       } else if (observer) {
         observer.disconnect();
         observer = null;
         clearTimeout(timer);
-        clearInterval(heartbeat);
       }
     };
 
@@ -72,7 +68,6 @@ export default defineContentScript({
     ctx.onInvalidated(() => {
       observer?.disconnect();
       clearTimeout(timer);
-      clearInterval(heartbeat);
     });
     sync();
   },
