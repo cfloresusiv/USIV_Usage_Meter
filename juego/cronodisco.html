@@ -105,7 +105,16 @@ button.chip { color: var(--fg); font: inherit; font-size: .9rem; cursor: pointer
 .listen { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .listen a { color: #fff; background: rgba(0,0,0,.25); padding: 6px 12px; border-radius: 999px; text-decoration: none; font-size: .85rem; font-weight: 700; }
 .listen a:hover { background: rgba(0,0,0,.4); }
-.cover { position: absolute; inset: 0; background: linear-gradient(135deg, #2e2257, #4b2a7a); display: grid; place-items: center; gap: 10px; text-align: center; padding: 16px; z-index: 2; }
+.mystery.blind { min-height: 300px; }
+.cover { position: absolute; inset: 0; background: linear-gradient(135deg, var(--pink), #8c3cff); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 20px; z-index: 2; }
+.cover .vinyl { width: 110px; height: 110px; }
+.mystery.spin .cover .vinyl { animation: spin 2.2s linear infinite; }
+.cover p { max-width: 30ch; }
+.btn.play { background: #fff; color: #3a1260; box-shadow: 0 4px 0 rgba(0,0,0,.25); padding: 12px 22px; min-width: 170px; margin-top: 6px; }
+.btn.play[disabled] { opacity: .8; }
+.prog { height: 4px; width: 100%; max-width: 220px; background: rgba(255,255,255,.25); border-radius: 4px; overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: #fff; transition: width .25s linear; }
+.linkish { background: none; border: 0; color: #fff; opacity: .8; text-decoration: underline; font-size: .85rem; }
 
 .tl { display: flex; flex-direction: column; gap: 0; }
 .tl .card {
@@ -255,8 +264,69 @@ const byId = id => SONGS[id];
 const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a);
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
-let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "abierto" };
+let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "oido" };
 if (!S.mazo) S.mazo = "chile40";
+
+// ---------- Audio: vista previa de 30 s desde el catálogo de iTunes (JSONP, sin clave) ----------
+const audio = new Audio();
+audio.preload = "auto";
+const previews = {};
+const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+const mainArtist = a => a.split(/ ft\. | & | y |, /)[0];
+function getPreview(id) {
+  if (id == null) return Promise.resolve(null);
+  if (previews[id] !== undefined) return Promise.resolve(previews[id]);
+  if (previews["p" + id]) return previews["p" + id];
+  const s = byId(id);
+  previews["p" + id] = new Promise(res => {
+    const cb = "itcb" + id + "_" + Math.floor(Math.random() * 1e6);
+    const sc = document.createElement("script");
+    const done = url => { clearTimeout(t); window[cb] = () => {}; sc.remove(); previews[id] = url; res(url); };
+    const t = setTimeout(() => done(null), 7000);
+    window[cb] = d => {
+      const rs = ((d && d.results) || []).filter(r => r.previewUrl);
+      const a = norm(mainArtist(s.a)), title = norm(s.t.replace(/\(.*?\)/g, "")).split(" ").slice(0, 2).join(" ");
+      const m = rs.find(r => norm(r.artistName).includes(a) && norm(r.trackName).includes(title)) || rs.find(r => norm(r.artistName).includes(a)) || rs[0];
+      done(m ? m.previewUrl : null);
+    };
+    sc.onerror = () => done(null);
+    const term = s.t.replace(/\(.*?\)/g, "").replace(/[^\p{L}\p{N}' ]/gu, " ") + " " + mainArtist(s.a);
+    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=15&country=CL&term=" + encodeURIComponent(term) + "&callback=" + cb;
+    document.head.appendChild(sc);
+  });
+  return previews["p" + id];
+}
+let player = "idle"; // idle | loading | playing | paused | none
+function setPlayer(st) { player = st; paintPlayer(); }
+function paintPlayer() {
+  const b = document.getElementById("playBtn");
+  const m = document.querySelector(".mystery");
+  if (m) m.classList.toggle("spin", player === "playing");
+  if (!b) return;
+  b.disabled = player === "loading";
+  b.textContent = { idle: "▶ Escuchar", loading: "Cargando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: "Sin audio · usa YouTube" }[player];
+  if (player === "none") b.disabled = true;
+}
+function startSong(id) {
+  stopSong();
+  const cached = previews[id];
+  if (cached === null) return setPlayer("none");
+  if (cached) { audio.src = cached; audio.currentTime = 0; setPlayer("loading"); audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle")); return; }
+  setPlayer("loading");
+  getPreview(id).then(u => {
+    if (S.current !== id) return;
+    if (!u) return setPlayer("none");
+    audio.src = u; audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle"));
+  });
+}
+function toggleSong() {
+  if (player === "playing") { audio.pause(); return setPlayer("paused"); }
+  if (player === "paused") { audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle")); return; }
+  startSong(S.current);
+}
+function stopSong() { audio.pause(); audio.removeAttribute("src"); try { audio.load(); } catch (e) {} player = "idle"; }
+audio.addEventListener("ended", () => setPlayer("paused"));
+audio.addEventListener("timeupdate", () => { const bar = document.getElementById("progBar"); if (bar && audio.duration) bar.style.width = (100 * audio.currentTime / audio.duration) + "%"; });
 
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
@@ -292,10 +362,11 @@ function skip() {
   const p = S.players[S.turn];
   if (p.tokens < 1 || !S.deck.length) return;
   p.tokens--; S.current = S.deck.pop(); S.slot = null; S.revealed = S.mode === "abierto";
-  save(); render();
+  save(); render(); startSong(S.current);
 }
 
 function next() {
+  stopSong();
   const p = S.players[S.turn];
   if (p.cards.length >= S.goal) { S.screen = "win"; S.winner = S.turn; save(); render(); confetti(400); return; }
   if (!S.deck.length) S.deck = shuffle(pool().filter(id => !S.players.some(pl => pl.cards.includes(id))));
@@ -352,7 +423,7 @@ function renderSetup() {
       <label><span class="label">Modo</span>
         <select id="mode">
           <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto</option>
-          <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas (con DJ)</option>
+          <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas (solo escuchas)</option>
         </select></label>
       <label style="grid-column:1/-1"><span class="label">Mazo</span>
         <select id="mazo">
@@ -366,7 +437,7 @@ function renderSetup() {
     <span class="label">Cómo se juega</span>
     <ol class="rules">
       <li>Cada jugador empieza con <b>una canción con su año</b> en su línea de tiempo.</li>
-      <li>En tu turno sale un disco misterioso. Ponlo en YouTube o Spotify y escúchalo en grupo.</li>
+      <li>En tu turno suena un disco misterioso (30 segundos). En modo <b>a ciegas</b> solo lo escuchas: el título aparece al final.</li>
       <li>Toca el hueco donde crees que va: <b>antes, entre o después</b> de tus canciones.</li>
       <li>Si aciertas, la carta se queda. Si fallas, se va a la basura.</li>
       <li>Apuesta el <b>año exacto</b> y, si lo clavas, ganas una ficha ●. Gasta fichas para cambiar una canción que no conoces.</li>
@@ -393,7 +464,8 @@ function renderHandoff() {
     <p class="muted">${p.cards.length} de ${S.goal} canciones · ${p.tokens} fichas</p>
     <button class="btn" id="go">Estoy listo</button>
   </div>`;
-  document.getElementById("go").onclick = () => { S.screen = "play"; S.editing = null; save(); render(); };
+  getPreview(S.current);
+  document.getElementById("go").onclick = () => { S.screen = "play"; S.editing = null; save(); render(); startSong(S.current); };
   wireScore();
 }
 
@@ -402,8 +474,15 @@ function renderPlay() {
   const song = byId(S.current);
   const res = S.screen === "result" ? S.result : null;
   const tl = sortedCards(p);
-  const listen = `<div class="listen"><a href="${yt(song)}" target="_blank" rel="noopener">▶ YouTube</a><a href="${sp(song)}" target="_blank" rel="noopener">▶ Spotify</a></div>`;
-  const cover = (!S.revealed && !res) ? `<div class="cover"><p><b>Modo a ciegas.</b> Que otra persona (el DJ) ponga la canción sin enseñar la pantalla.</p>${listen}<button class="btn small" id="reveal">Ya sonó: mostrar título</button></div>` : "";
+  const listen = `<div class="listen"><a href="${yt(song)}" target="_blank" rel="noopener">YouTube</a><a href="${sp(song)}" target="_blank" rel="noopener">Spotify</a></div>`;
+  const playBtn = `<button class="btn play" id="playBtn" type="button">▶ Escuchar</button><div class="prog" aria-hidden="true"><i id="progBar"></i></div>`;
+  const blind = !S.revealed && !res;
+  const cover = blind ? `<div class="cover">
+      ${VINYL(p.color)}
+      <p><b>¿De qué año es?</b> Escucha y colócala en tu línea. El título aparece al final.</p>
+      ${playBtn}
+      <button class="linkish" id="reveal" type="button">Me rindo: mostrar título</button>
+    </div>` : "";
   let tlHtml = "";
   tl.forEach((id, i) => {
     tlHtml += `<button class="slot ${S.slot === i ? "sel" : ""}" data-slot="${i}">${i === 0 ? "Antes de " + byId(id).y : "Entre " + byId(tl[i - 1]).y + " y " + byId(id).y}</button>`;
@@ -414,13 +493,14 @@ function renderPlay() {
 
   app.innerHTML = `${scoreboard()}
   <div class="turn"><h2>Turno de <span style="color:${p.color}">${esc(p.name)}</span></h2><span class="muted">${S.deck.length} discos en la pila</span></div>
-  <section class="mystery ${res ? "" : "spin"}" aria-live="polite">
+  <section class="mystery ${blind ? "blind" : ""}" aria-live="polite">
     ${VINYL(p.color)}
     <div class="info">
       <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
       <span class="t">${esc(song.t)}</span>${song.cl ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${res ? "" : listen}
+      ${blind ? "" : playBtn}
+      ${listen}
     </div>
     ${cover}
   </section>
@@ -448,6 +528,9 @@ function renderPlay() {
   on("skip", "onclick", skip);
   on("next", "onclick", next);
   on("reveal", "onclick", () => { S.revealed = true; save(); render(); });
+  on("playBtn", "onclick", toggleSong);
+  paintPlayer();
+  if (!previews[S.current]) getPreview(S.current).then(() => { if (player === "idle") paintPlayer(); });
   on("bet", "onchange", e => { S.bet = e.target.checked; save(); render(); });
   on("betYear", "oninput", e => { S.betYear = e.target.value; save(); });
   on("quit", "onclick", () => { S.screen = "setup"; save(); render(); });
