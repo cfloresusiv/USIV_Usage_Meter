@@ -310,7 +310,7 @@ function paintPlayer() {
   if (player === "none") b.disabled = true;
 }
 // ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
-const SP_CLIENT_ID = "";
+const SP_CLIENT_ID = "00bd8bb464364a608083117160cab690";
 const SP_REDIRECT = location.origin + location.pathname;
 const SP_KEY = "cronodisco-spotify";
 let SPT = (() => { try { return JSON.parse(localStorage.getItem(SP_KEY)) || null; } catch (e) { return null; } })();

@@ -120,6 +120,8 @@ button.chip { color: var(--fg); font: inherit; font-size: .9rem; cursor: pointer
 .btn.play[disabled] { opacity: .8; }
 .prog { height: 4px; width: 100%; max-width: 220px; background: rgba(255,255,255,.25); border-radius: 4px; overflow: hidden; }
 .prog i { display: block; height: 100%; width: 0; background: #fff; transition: width .25s linear; }
+.spbox { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 4px; border-top: 1px solid var(--line); }
+.btn.sp { background: #1ed760; color: #04210f; box-shadow: 0 4px 0 #13994a; }
 .linkish { background: none; border: 0; color: #fff; opacity: .8; text-decoration: underline; font-size: .85rem; }
 
 .tl { display: flex; flex-direction: column; gap: 0; }
@@ -315,8 +317,88 @@ function paintPlayer() {
   b.textContent = { idle: "▶ Escuchar", loading: "Cargando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: "Sin audio · usa YouTube" }[player];
   if (player === "none") b.disabled = true;
 }
+// ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
+const SP_CLIENT_ID = "00bd8bb464364a608083117160cab690";
+const SP_REDIRECT = location.origin + location.pathname;
+const SP_KEY = "cronodisco-spotify";
+let SPT = (() => { try { return JSON.parse(localStorage.getItem(SP_KEY)) || null; } catch (e) { return null; } })();
+const spSave = () => { try { SPT ? localStorage.setItem(SP_KEY, JSON.stringify(SPT)) : localStorage.removeItem(SP_KEY); } catch (e) {} };
+const spOn = () => !!(SP_CLIENT_ID && SPT && SPT.refresh);
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function spLogin() {
+  const v = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  try { localStorage.setItem(SP_KEY + "-v", v); } catch (e) {}
+  const ch = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({ client_id: SP_CLIENT_ID, response_type: "code", redirect_uri: SP_REDIRECT, code_challenge_method: "S256", code_challenge: ch, scope: "user-modify-playback-state user-read-playback-state" });
+}
+async function spToken(params) {
+  const r = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: SP_CLIENT_ID, ...params }) });
+  const j = await r.json();
+  if (!j.access_token) throw new Error(j.error_description || "Spotify no respondió");
+  SPT = { access: j.access_token, refresh: j.refresh_token || (SPT && SPT.refresh), exp: Date.now() + (j.expires_in - 60) * 1000, device: SPT && SPT.device };
+  spSave();
+}
+async function spHandleRedirect() {
+  const q = new URLSearchParams(location.search);
+  if (!q.get("code") && !q.get("error")) return;
+  history.replaceState(null, "", SP_REDIRECT);
+  if (q.get("code")) {
+    let v = null; try { v = localStorage.getItem(SP_KEY + "-v"); } catch (e) {}
+    try { await spToken({ grant_type: "authorization_code", code: q.get("code"), redirect_uri: SP_REDIRECT, code_verifier: v }); spMsg = "Spotify conectado."; } catch (e) { spMsg = "No se pudo conectar Spotify: " + e.message; }
+  } else spMsg = "Conexión con Spotify cancelada.";
+  render();
+}
+async function spApi(path, opts = {}) {
+  if (Date.now() > SPT.exp) await spToken({ grant_type: "refresh_token", refresh_token: SPT.refresh });
+  const r = await fetch("https://api.spotify.com/v1" + path, { ...opts, headers: { Authorization: "Bearer " + SPT.access, "Content-Type": "application/json" } });
+  if (r.status === 204 || r.status === 202) return {};
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error((j.error && j.error.message) || r.status); e.status = r.status; e.reason = j.error && j.error.reason; throw e; }
+  return j;
+}
+const spUris = {};
+async function spFind(id) {
+  if (spUris[id] !== undefined) return spUris[id];
+  const s = byId(id), t = s.t.replace(/\(.*?\)/g, "").trim(), a = mainArtist(s.a);
+  let j = await spApi("/search?" + new URLSearchParams({ q: `track:${t} artist:${a}`, type: "track", limit: "5", market: "from_token" }));
+  let items = (j.tracks && j.tracks.items) || [];
+  if (!items.length) { j = await spApi("/search?" + new URLSearchParams({ q: t + " " + a, type: "track", limit: "5", market: "from_token" })); items = (j.tracks && j.tracks.items) || []; }
+  const m = items.find(x => x.artists.some(ar => norm(ar.name).includes(norm(a)) || norm(a).includes(norm(ar.name)))) || items[0];
+  return (spUris[id] = m ? m.uri : null);
+}
+async function spDevice() {
+  const j = await spApi("/me/player/devices");
+  const ds = j.devices || [];
+  const d = ds.find(x => x.is_active) || ds.find(x => SPT.device && x.id === SPT.device.id) || ds.find(x => x.type === "Smartphone") || ds[0];
+  if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
+  return d || null;
+}
+let spMsg = "";
+async function spPlay(id) {
+  setPlayer("loading");
+  try {
+    const uri = await spFind(id);
+    if (S.current !== id) return;
+    if (!uri) { spMsg = "Spotify no encontró esta canción; suena la vista previa."; return itunesPlay(id); }
+    const d = await spDevice();
+    if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
+    await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
+    viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name; paintSpMsg(); setPlayer("playing");
+  } catch (e) {
+    spMsg = e.status === 404 ? "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí." : e.status === 403 ? "Spotify no permitió reproducir (¿cuenta Premium?). Suena la vista previa." : "Spotify falló (" + e.message + "). Suena la vista previa.";
+    paintSpMsg();
+    if (e.status === 404) return setPlayer("idle");
+    itunesPlay(id);
+  }
+}
+function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.textContent = spMsg; }
+
 function startSong(id) {
   stopSong();
+  if (spOn()) return spPlay(id);
+  itunesPlay(id);
+}
+function itunesPlay(id) {
   const cached = previews[id];
   if (cached === null) return setPlayer("none");
   if (cached) { audio.src = cached; audio.currentTime = 0; setPlayer("loading"); audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle")); return; }
@@ -327,12 +409,21 @@ function startSong(id) {
     audio.src = u; audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle"));
   });
 }
+let viaSpotify = false;
 function toggleSong() {
+  if (viaSpotify) {
+    if (player === "playing") { spApi("/me/player/pause", { method: "PUT" }).catch(() => {}); return setPlayer("paused"); }
+    if (player === "paused") { spApi("/me/player/play", { method: "PUT" }).then(() => setPlayer("playing")).catch(() => startSong(S.current)); return; }
+    return startSong(S.current);
+  }
   if (player === "playing") { audio.pause(); return setPlayer("paused"); }
   if (player === "paused") { audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle")); return; }
   startSong(S.current);
 }
-function stopSong() { audio.pause(); audio.removeAttribute("src"); try { audio.load(); } catch (e) {} player = "idle"; }
+function stopSong() {
+  if (viaSpotify && player === "playing") spApi("/me/player/pause", { method: "PUT" }).catch(() => {});
+  audio.pause(); audio.removeAttribute("src"); try { audio.load(); } catch (e) {} player = "idle"; viaSpotify = false;
+}
 audio.addEventListener("ended", () => setPlayer("paused"));
 audio.addEventListener("timeupdate", () => { const bar = document.getElementById("progBar"); if (bar && audio.duration) bar.style.width = (100 * audio.currentTime / audio.duration) + "%"; });
 
@@ -439,6 +530,14 @@ function renderSetup() {
           <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas</option>
         </select></label>
     </div>
+    ${SP_CLIENT_ID ? `<div class="spbox">
+      <span class="label">Música</span>
+      ${spOn() ? `<p><b>Spotify conectado.</b> Las canciones suenan completas en tu Spotify${SPT.device ? " (" + esc(SPT.device.name) + ")" : ""}. Deja la app de Spotify abierta en segundo plano.</p>
+        <button class="btn ghost small" id="spOut" type="button">Desconectar Spotify</button>`
+      : `<p class="muted">Ahora suenan vistas previas de 30 segundos. Con Spotify Premium suenan completas.</p>
+        <button class="btn small sp" id="spIn" type="button">Conectar Spotify</button>`}
+      ${spMsg ? `<p class="muted" style="font-size:.85rem">${esc(spMsg)}</p>` : ""}
+    </div>` : ""}
     <button class="btn" id="start">Empezar el carrete</button>
   </section>
   <section class="panel">
@@ -461,6 +560,9 @@ function renderSetup() {
   document.getElementById("mode").onchange = e => { S.mode = e.target.value; save(); };
   document.getElementById("mazo").onchange = e => { S.mazo = e.target.value; save(); render(); };
   document.getElementById("start").onclick = newGame;
+  const spIn = document.getElementById("spIn"), spOut = document.getElementById("spOut");
+  if (spIn) spIn.onclick = spLogin;
+  if (spOut) spOut.onclick = () => { SPT = null; spSave(); spMsg = ""; render(); };
 }
 
 function renderHandoff() {
@@ -489,6 +591,7 @@ function renderPlay() {
       ${VINYL(p.color)}
       <p><b>¿De qué año es?</b> Escucha y colócala en tu línea. El título aparece al final.</p>
       ${playBtn}
+      ${spOn() ? `<small id="spMsg" style="opacity:.9">${esc(spMsg)}</small>` : ""}
       <button class="linkish" id="reveal" type="button">Me rindo: mostrar título</button>
     </div>` : "";
   let tlHtml = "";
@@ -509,6 +612,7 @@ function renderPlay() {
       <span class="a">${esc(song.a)}</span>
       ${blind ? "" : playBtn}
       ${listen}
+      ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
     ${cover}
   </section>
@@ -577,6 +681,7 @@ function tick() {
 }
 
 render();
+spHandleRedirect();
 </script>
 </body>
 </html>
