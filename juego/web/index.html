@@ -216,8 +216,39 @@ const SONGS = [
 ["Calm Down","Rema & Selena Gomez",2022],["Flowers","Miley Cyrus",2023],["TQG","Karol G & Shakira",2023],
 ["Shakira: Bzrp Music Sessions, Vol. 53","Bizarrap & Shakira",2023],["Ella baila sola","Eslabón Armado & Peso Pluma",2023],
 ["Espresso","Sabrina Carpenter",2024],["APT.","ROSÉ & Bruno Mars",2024],["Die With A Smile","Lady Gaga & Bruno Mars",2024],
-["BIRDS OF A FEATHER","Billie Eilish",2024]
-].map(([t,a,y],i)=>({id:i,t,a,y}));
+["BIRDS OF A FEATHER","Billie Eilish",2024],
+// Hecho en Chile
+["We Are Sudamerican Rockers","Los Prisioneros",1984,1],["El baile de los que sobran","Los Prisioneros",1986,1],
+["¿Por qué no se van?","Los Prisioneros",1986,1],["Tren al sur","Los Prisioneros",1990,1],
+["El hombre que yo amo","Myriam Hernández",1988,1],["Esperando nada","Nicole",1994,1],
+["Déjate caer","Los Tres",1995,1],["El duelo","La Ley",1995,1],["Maldito sida","Supernova",1999,1],
+["Aquí","La Ley",2000,1],["Sin despertar","Kudai",2004,1],["Llueve sobre la ciudad","Los Bunkers",2005,1],
+["Ven aquí","Los Bunkers",2005,1],["Te vas","Américo",2008,1],["Al siguiente nivel","Javiera Mena",2010,1],
+["Tu falta de querer","Mon Laferte",2015,1],["Amárrame","Mon Laferte ft. Juanes",2017,1],
+// Lo que sonaba en los carretes de los 80, 90 y 2000
+["Cuando pase el temblor","Soda Stereo",1985],["Devuélveme a mi chica","Hombres G",1985],["The Final Countdown","Europe",1986],
+["Ahora te puedes marchar","Luis Miguel",1987],["Never Gonna Give You Up","Rick Astley",1987],["La incondicional","Luis Miguel",1989],
+["Chica de humo","Emmanuel",1989],["Pump Up the Jam","Technotronic",1989],["Mujer amante","Rata Blanca",1990],
+["Tiempo de vals","Chayanne",1990],["U Can't Touch This","MC Hammer",1990],["Ice Ice Baby","Vanilla Ice",1990],
+["Vogue","Madonna",1990],["Nothing Compares 2 U","Sinéad O'Connor",1990],["Gonna Make You Sweat (Everybody Dance Now)","C+C Music Factory",1990],
+["Black or White","Michael Jackson",1991],["Rhythm Is a Dancer","Snap!",1992],["I Will Always Love You","Whitney Houston",1992],
+["What Is Love","Haddaway",1993],["Mr. Vain","Culture Beat",1993],["Matador","Los Fabulosos Cadillacs",1993],
+["Afuera","Caifanes",1994],["Ella usó mi cabeza como un revólver","Soda Stereo",1995],["Gangsta's Paradise","Coolio ft. L.V.",1995],
+["Bolero falaz","Aterciopelados",1995],["Killing Me Softly","Fugees",1996],["Bailando","Paradisio",1996],
+["My Heart Will Go On","Céline Dion",1997],["Everybody (Backstreet's Back)","Backstreet Boys",1997],["Bitter Sweet Symphony","The Verve",1997],
+["Amor a la mexicana","Thalía",1997],["Bailamos","Enrique Iglesias",1999],["Corazón espinado","Santana ft. Maná",1999],
+["It's My Life","Bon Jovi",2000],["Oops!... I Did It Again","Britney Spears",2000],["Beautiful Day","U2",2000],
+["Fiesta pagana","Mägo de Oz",2000],["Aserejé","Las Ketchup",2002],["Ave María","David Bisbal",2002],
+["Torero","Chayanne",2002],["Mi primer millón","Bacilos",2002],["Obsesión","Aventura",2002],["Complicated","Avril Lavigne",2002],
+["Clocks","Coldplay",2002],["Dile","Don Omar",2003],["In da Club","50 Cent",2003],["Numb","Linkin Park",2003],
+["Bring Me to Life","Evanescence",2003],["Rosas","La Oreja de Van Gogh",2003],["Nada valgo sin tu amor","Juanes",2004],
+["Boulevard of Broken Dreams","Green Day",2004],["Ella","Bebe",2004],["Rakata","Wisin & Yandel",2005],
+["Ella y yo","Aventura ft. Don Omar",2005],["Feel Good Inc.","Gorillaz",2005],["Labios compartidos","Maná",2006],
+["Crimen","Gustavo Cerati",2006],["Mientes","Camila",2010]
+].map(([t,a,y,cl],i)=>({id:i,t,a,y,cl:!!cl}));
+
+// Mazos: "chile40" = todo lo chileno + lo que sonaba entre 1980 y 2012 (la juventud de quien hoy tiene ~40)
+const pool = () => SONGS.filter(s => S.mazo === "todo" || s.cl || (s.y >= 1980 && s.y <= 2012)).map(s => s.id);
 
 const COLORS = ["#ffc23d","#3de0c5","#ff5d8f","#9b8cff","#ff9f43","#7bed6f","#5ec8ff","#ff7ad9"];
 const KEY = "cronodisco-v1";
@@ -228,7 +259,8 @@ const byId = id => SONGS[id];
 const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a);
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
-let S = load() || { screen: "setup", names: ["Ana", "Luis", "Sofi"], goal: 10, mode: "abierto" };
+let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "abierto" };
+if (!S.mazo) S.mazo = "chile40";
 
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
@@ -236,7 +268,7 @@ function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e
 function newGame() {
   const names = S.names.map(n => n.trim()).filter(Boolean);
   if (names.length < 1) return;
-  const deck = shuffle(SONGS.map(s => s.id));
+  const deck = shuffle(pool());
   const players = names.map((n, i) => ({ name: n, color: COLORS[i % COLORS.length], cards: [deck.pop()], tokens: 2 }));
   S = { ...S, names, screen: "handoff", players, deck, turn: 0, current: deck.pop(), slot: null, bet: false, betYear: 1995, result: null, revealed: S.mode === "abierto" };
   save(); render();
@@ -270,7 +302,7 @@ function skip() {
 function next() {
   const p = S.players[S.turn];
   if (p.cards.length >= S.goal) { S.screen = "win"; S.winner = S.turn; save(); render(); confetti(400); return; }
-  if (!S.deck.length) S.deck = shuffle(SONGS.map(s => s.id).filter(id => !S.players.some(pl => pl.cards.includes(id))));
+  if (!S.deck.length) S.deck = shuffle(pool().filter(id => !S.players.some(pl => pl.cards.includes(id))));
   S.turn = (S.turn + 1) % S.players.length;
   S.current = S.deck.pop(); S.slot = null; S.bet = false; S.result = null; S.revealed = S.mode === "abierto";
   S.screen = S.players.length > 1 ? "handoff" : "play";
@@ -311,8 +343,13 @@ function renderSetup() {
           <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto: ves título y artista</option>
           <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas: el DJ la pone, tú adivinas</option>
         </select></label>
+      <label style="grid-column:1/-1"><span class="label">Mazo</span>
+        <select id="mazo">
+          <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40 (rock chileno, carretes de los 80, 90 y 2000)</option>
+          <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas (1957 a 2024)</option>
+        </select></label>
     </div>
-    <button class="btn" id="start">Empezar la fiesta</button>
+    <button class="btn" id="start">Empezar el carrete</button>
   </section>
   <section class="panel">
     <span class="label">Cómo se juega</span>
@@ -325,13 +362,14 @@ function renderSetup() {
       <li>Gana quien llegue primero a la meta.</li>
     </ol>
   </section>
-  <footer>${SONGS.length} canciones de ${SONGS[0].y} a ${SONGS[SONGS.length - 1].y}</footer>`;
+  <footer>${pool().length} canciones en este mazo · ${SONGS.filter(s => s.cl).length} hechas en Chile</footer>`;
   app.querySelectorAll(".prow input").forEach((inp, i) => inp.addEventListener("input", e => { S.names[i] = e.target.value; save(); }));
   app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (S.names.length > 1) { S.names.splice(+b.dataset.del, 1); save(); render(); } });
   const add = document.getElementById("add");
   if (add) add.onclick = () => { S.names.push(""); save(); render(); document.getElementById("p" + (S.names.length - 1)).focus(); };
   document.getElementById("goal").onchange = e => { S.goal = +e.target.value; save(); };
   document.getElementById("mode").onchange = e => { S.mode = e.target.value; save(); };
+  document.getElementById("mazo").onchange = e => { S.mazo = e.target.value; save(); render(); };
   document.getElementById("start").onclick = newGame;
 }
 
@@ -368,14 +406,14 @@ function renderPlay() {
     ${VINYL(p.color)}
     <div class="info">
       <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
-      <span class="t">${esc(song.t)}</span>
+      <span class="t">${esc(song.t)}</span>${song.cl ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
       ${res ? "" : listen}
     </div>
     ${cover}
   </section>
   ${res ? `<div class="verdict ${res.ok ? "ok" : "no"}">
-      <strong>${res.ok ? "¡Bien colocada!" : "Fuera de lugar"}</strong>
+      <strong>${res.ok ? "¡Bacán, la achuntaste!" : "Nooo, le erraste"}</strong>
       <span>${res.ok ? "La canción se queda en tu línea de tiempo." : `Era de ${song.y}. Esta carta se descarta.`}</span>
       ${S.bet ? `<span>${res.bonus ? "Clavaste el año exacto: +1 ficha ●" : `Apostaste ${esc(S.betYear)}, no era.`}</span>` : ""}
     </div>
@@ -408,7 +446,7 @@ function renderWin() {
   const rank = S.players.map((p, i) => ({ ...p, i })).sort((a, b) => b.cards.length - a.cards.length || b.tokens - a.tokens);
   app.innerHTML = `<div class="win">
     ${VINYL(w.color)}
-    <span class="label">Rey de la pista</span>
+    <span class="label">¡La raja! Rey de la pista</span>
     <div class="crown">${esc(w.name)}</div>
     <p class="muted">Completó ${S.goal} canciones en orden.</p>
     <div class="rank">${rank.map((p, k) => `<div class="chip ${p.i === S.winner ? "on" : ""}"><span style="display:flex;gap:8px;align-items:center"><span class="av" style="background:${p.color}">${k + 1}</span>${esc(p.name)}</span><span class="n">${p.cards.length} · ● ${p.tokens}</span></div>`).join("")}</div>
