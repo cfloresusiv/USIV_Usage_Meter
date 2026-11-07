@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Cronodisco: el juego de fiesta donde ordenas canciones por año.">
+<title>Cronodisco</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shrikhand&family=Outfit:wght@400;500;700&family=JetBrains+Mono:wght@600;800&display=swap">
+<style>
+/* Layout: una sola columna tipo "tocadiscos" — cabecera con marcador, disco misterioso y línea de tiempo vertical con huecos donde soltar la canción. Tema oscuro único, a propósito: luz de discoteca. */
+:root {
+  color-scheme: dark;
+  --bg: #15102a;
+  --bg-2: #1f1838;
+  --card: #2a2148;
+  --line: #3d3363;
+  --fg: #f3edff;
+  --muted: #a99fcb;
+  --gold: #ffc23d;
+  --pink: #ff5d8f;
+  --teal: #3de0c5;
+  --bad: #ff6b5b;
+  --f-display: "Shrikhand", "Georgia", serif;
+  --f-body: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(circle at 15% -10%, rgba(255,93,143,.22), transparent 45%),
+                    radial-gradient(circle at 110% 20%, rgba(61,224,197,.14), transparent 40%);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 60px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+h1, h2 { font-family: var(--f-display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: .5px; }
+h1 { font-size: clamp(2.6rem, 11vw, 3.6rem); line-height: 1; color: var(--gold); text-shadow: 3px 3px 0 var(--pink); }
+h2 { font-size: 1.6rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+.btn {
+  border: 0; border-radius: 999px; padding: 14px 22px; font-weight: 700;
+  background: var(--gold); color: #251a00; font-size: 1.05rem;
+  box-shadow: 0 4px 0 #b88600; transition: transform .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b88600; }
+.btn.ghost { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 2px var(--line); }
+.btn.small { padding: 8px 14px; font-size: .9rem; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Setup ---------- */
+.hero { display: flex; gap: 16px; align-items: center; }
+.hero .vinyl { flex: none; width: 92px; height: 92px; }
+.intro { display: flex; flex-direction: column; gap: 6px; }
+.panel { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.players { display: flex; flex-direction: column; gap: 8px; }
+.prow { display: flex; gap: 8px; align-items: center; }
+.prow .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.prow input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.prow button { background: none; border: 0; color: var(--muted); font-size: 1.3rem; width: 36px; height: 36px; border-radius: 8px; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.opts label { display: flex; flex-direction: column; gap: 6px; }
+.opts select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.rules { display: flex; flex-direction: column; gap: 8px; margin: 0; padding-left: 20px; color: var(--muted); }
+.rules b { color: var(--fg); }
+
+/* ---------- Juego ---------- */
+.score { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chip { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); font-size: .9rem; }
+.chip.on { border-color: var(--gold); background: var(--card); }
+.chip .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #15102a; font-size: .8rem; }
+.chip .n { font-family: var(--f-mono); font-weight: 800; }
+.chip .tk { color: var(--gold); font-size: .8rem; }
+
+.turn { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.turn h2 span { color: var(--pink); }
+
+.mystery {
+  position: relative; border-radius: 22px; padding: 20px; overflow: hidden;
+  background: linear-gradient(135deg, var(--pink), #8c3cff);
+  display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center;
+  box-shadow: 0 12px 30px -12px rgba(255,93,143,.6);
+}
+.mystery .vinyl { width: 96px; height: 96px; }
+.mystery.spin .vinyl { animation: spin 2.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mystery .t { font-size: 1.3rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.mystery .a { opacity: .9; }
+.mystery .q { font-family: var(--f-mono); font-weight: 800; font-size: 1.8rem; letter-spacing: .1em; }
+.mystery .info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.listen { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.listen a { color: #fff; background: rgba(0,0,0,.25); padding: 6px 12px; border-radius: 999px; text-decoration: none; font-size: .85rem; font-weight: 700; }
+.listen a:hover { background: rgba(0,0,0,.4); }
+.cover { position: absolute; inset: 0; background: linear-gradient(135deg, #2e2257, #4b2a7a); display: grid; place-items: center; gap: 10px; text-align: center; padding: 16px; z-index: 2; }
+
+.tl { display: flex; flex-direction: column; gap: 0; }
+.tl .card {
+  display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px;
+}
+.tl .card .y { font-family: var(--f-mono); font-weight: 800; font-size: 1.35rem; color: var(--gold); font-variant-numeric: tabular-nums; }
+.tl .card .s { min-width: 0; }
+.tl .card .s b { display: block; overflow-wrap: anywhere; }
+.tl .card .s small { color: var(--muted); }
+.tl .card.new { animation: pop .5s ease; border-color: var(--teal); }
+@keyframes pop { 0% { transform: scale(.8); opacity: 0; } 60% { transform: scale(1.04); } 100% { transform: scale(1); opacity: 1; } }
+.slot {
+  margin: 6px 0; border: 2px dashed var(--line); border-radius: 12px; background: transparent;
+  color: var(--muted); padding: 10px; font-weight: 700; font-size: .9rem; width: 100%;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.slot:hover, .slot.sel { border-color: var(--teal); color: var(--teal); background: rgba(61,224,197,.08); }
+.slot.sel { border-style: solid; }
+.tl.locked .slot { display: none; }
+
+.bet { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bet input[type=number] { width: 100px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-family: var(--f-mono); font-weight: 800; }
+.bet input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--gold); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions .btn { flex: 1 1 auto; }
+
+.verdict { border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
+.verdict.ok { background: rgba(61,224,197,.14); border: 1px solid var(--teal); }
+.verdict.no { background: rgba(255,107,91,.14); border: 1px solid var(--bad); animation: shake .4s; }
+.verdict strong { font-family: var(--f-display); font-weight: 400; font-size: 1.5rem; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+.handoff { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; }
+.handoff .big { font-family: var(--f-display); font-size: clamp(2.4rem, 12vw, 3.4rem); line-height: 1.05; }
+
+.win { text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; padding-top: 30px; }
+.win .crown { font-family: var(--f-display); font-size: clamp(2.6rem, 12vw, 3.8rem); color: var(--gold); text-shadow: 3px 3px 0 var(--pink); line-height: 1.05; }
+.rank { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.rank .chip { justify-content: space-between; padding: 10px 16px 10px 10px; }
+
+#confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+footer { text-align: center; font-size: .8rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 420px) { .opts { grid-template-columns: 1fr; } .mystery { grid-template-columns: 72px 1fr; } .mystery .vinyl { width: 72px; height: 72px; } }
+</style>
+
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<main class="wrap" id="app"></main>
+
+<script>
+const VINYL = (label) => `<svg class="vinyl" viewBox="0 0 100 100" aria-hidden="true">
+  <circle cx="50" cy="50" r="49" fill="#0d0a18"/>
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#2a2340" stroke-width="1"/>
+  <circle cx="50" cy="50" r="33" fill="none" stroke="#2a2340" stroke-width="1"/>
+  <circle cx="50" cy="50" r="26" fill="none" stroke="#2a2340" stroke-width="1"/>
+  <path d="M20 30 A36 36 0 0 1 45 15" stroke="#ffffff22" stroke-width="3" fill="none"/>
+  <circle cx="50" cy="50" r="17" fill="${label}"/>
+  <circle cx="50" cy="50" r="2.5" fill="#0d0a18"/>
+</svg>`;
+
+// [título, artista, año de lanzamiento original]
+const SONGS = [
+["Jailhouse Rock","Elvis Presley",1957],["La Bamba","Ritchie Valens",1958],["Johnny B. Goode","Chuck Berry",1958],
+["Yesterday","The Beatles",1965],["(I Can't Get No) Satisfaction","The Rolling Stones",1965],["Good Vibrations","The Beach Boys",1966],
+["Respect","Aretha Franklin",1967],["What a Wonderful World","Louis Armstrong",1967],["Hey Jude","The Beatles",1968],
+["Let It Be","The Beatles",1970],["Oye cómo va","Santana",1970],["El Triste","José José",1970],
+["Imagine","John Lennon",1971],["Stairway to Heaven","Led Zeppelin",1971],["Life on Mars?","David Bowie",1971],
+["Eres tú","Mocedades",1973],["Waterloo","ABBA",1974],["Bohemian Rhapsody","Queen",1975],["Mamma Mia","ABBA",1975],
+["Dancing Queen","ABBA",1976],["Hotel California","Eagles",1976],["Stayin' Alive","Bee Gees",1977],["Heroes","David Bowie",1977],
+["I Will Survive","Gloria Gaynor",1978],["Y.M.C.A.","Village People",1978],["Le Freak","Chic",1978],
+["Gimme! Gimme! Gimme!","ABBA",1979],["Another One Bites the Dust","Queen",1980],["Africa","Toto",1982],
+["Billie Jean","Michael Jackson",1983],["Every Breath You Take","The Police",1983],["Sweet Dreams (Are Made of This)","Eurythmics",1983],
+["Girls Just Want to Have Fun","Cyndi Lauper",1983],["Like a Virgin","Madonna",1984],["Purple Rain","Prince",1984],
+["Amor eterno","Rocío Dúrcal",1984],["Querida","Juan Gabriel",1984],["Persiana americana","Soda Stereo",1986],
+["Livin' on a Prayer","Bon Jovi",1986],["With or Without You","U2",1987],["Like a Prayer","Madonna",1989],
+["De música ligera","Soda Stereo",1990],["Rayando el sol","Maná",1990],["Smells Like Teen Spirit","Nirvana",1991],
+["Losing My Religion","R.E.M.",1991],["Bailar pegados","Sergio Dalma",1991],["Como la flor","Selena",1992],
+["Lamento boliviano","Enanitos Verdes",1994],["Zombie","The Cranberries",1994],["Bidi Bidi Bom Bom","Selena",1994],
+["Wonderwall","Oasis",1995],["Wannabe","Spice Girls",1996],["La flaca","Jarabe de Palo",1996],
+["Corazón partío","Alejandro Sanz",1997],["Clavado en un bar","Maná",1997],["Torn","Natalie Imbruglia",1997],
+["Barbie Girl","Aqua",1997],["Believe","Cher",1998],["Suavemente","Elvis Crespo",1998],["...Baby One More Time","Britney Spears",1998],
+["Livin' la vida loca","Ricky Martin",1999],["I Want It That Way","Backstreet Boys",1999],["Smooth","Santana ft. Rob Thomas",1999],
+["Mambo No. 5","Lou Bega",1999],["Yellow","Coldplay",2000],["Me gustas tú","Manu Chao",2001],
+["Whenever, Wherever","Shakira",2001],["Lose Yourself","Eminem",2002],["A Dios le pido","Juanes",2002],
+["Mariposa traicionera","Maná",2002],["Crazy in Love","Beyoncé ft. Jay-Z",2003],["Hey Ya!","OutKast",2003],
+["Seven Nation Army","The White Stripes",2003],["Gasolina","Daddy Yankee",2004],["La tortura","Shakira ft. Alejandro Sanz",2005],
+["La camisa negra","Juanes",2005],["Hips Don't Lie","Shakira ft. Wyclef Jean",2006],["Rehab","Amy Winehouse",2006],
+["Crazy","Gnarls Barkley",2006],["Umbrella","Rihanna ft. Jay-Z",2007],["Viva la Vida","Coldplay",2008],
+["Single Ladies (Put a Ring on It)","Beyoncé",2008],["Poker Face","Lady Gaga",2008],["Bad Romance","Lady Gaga",2009],
+["Rolling in the Deep","Adele",2010],["Waka Waka (Esto es África)","Shakira",2010],["Danza Kuduro","Don Omar ft. Lucenzo",2010],
+["Someone Like You","Adele",2011],["Somebody That I Used to Know","Gotye ft. Kimbra",2011],["Ai se eu te pego","Michel Teló",2011],
+["Gangnam Style","PSY",2012],["Get Lucky","Daft Punk ft. Pharrell Williams",2013],["Happy","Pharrell Williams",2013],
+["Vivir mi vida","Marc Anthony",2013],["Uptown Funk","Mark Ronson ft. Bruno Mars",2014],["Bailando","Enrique Iglesias",2014],
+["Shake It Off","Taylor Swift",2014],["La gozadera","Gente de Zona ft. Marc Anthony",2015],["Hasta la raíz","Natalia Lafourcade",2015],
+["Sofia","Álvaro Soler",2016],["Despacito","Luis Fonsi ft. Daddy Yankee",2017],["Shape of You","Ed Sheeran",2017],
+["Mi gente","J Balvin & Willy William",2017],["Shallow","Lady Gaga & Bradley Cooper",2018],["Te boté (Remix)","Nio García, Casper Mágico, Bad Bunny y más",2018],
+["Blinding Lights","The Weeknd",2019],["bad guy","Billie Eilish",2019],["Con calma","Daddy Yankee ft. Snow",2019],
+["Tusa","Karol G & Nicki Minaj",2019],["Cruel Summer","Taylor Swift",2019],["Dákiti","Bad Bunny & Jhay Cortez",2020],
+["Levitating","Dua Lipa",2020],["Dynamite","BTS",2020],["Hawái","Maluma",2020],["Bichota","Karol G",2020],
+["drivers license","Olivia Rodrigo",2021],["Pepas","Farruko",2021],["As It Was","Harry Styles",2022],
+["Tití me preguntó","Bad Bunny",2022],["Anti-Hero","Taylor Swift",2022],["La bachata","Manuel Turizo",2022],
+["Calm Down","Rema & Selena Gomez",2022],["Flowers","Miley Cyrus",2023],["TQG","Karol G & Shakira",2023],
+["Shakira: Bzrp Music Sessions, Vol. 53","Bizarrap & Shakira",2023],["Ella baila sola","Eslabón Armado & Peso Pluma",2023],
+["Espresso","Sabrina Carpenter",2024],["APT.","ROSÉ & Bruno Mars",2024],["Die With A Smile","Lady Gaga & Bruno Mars",2024],
+["BIRDS OF A FEATHER","Billie Eilish",2024]
+].map(([t,a,y],i)=>({id:i,t,a,y}));
+
+const COLORS = ["#ffc23d","#3de0c5","#ff5d8f","#9b8cff","#ff9f43","#7bed6f","#5ec8ff","#ff7ad9"];
+const KEY = "cronodisco-v1";
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const byId = id => SONGS[id];
+const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a);
+const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
+
+let S = load() || { screen: "setup", names: ["Ana", "Luis", "Sofi"], goal: 10, mode: "abierto" };
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+
+function newGame() {
+  const names = S.names.map(n => n.trim()).filter(Boolean);
+  if (names.length < 1) return;
+  const deck = shuffle(SONGS.map(s => s.id));
+  const players = names.map((n, i) => ({ name: n, color: COLORS[i % COLORS.length], cards: [deck.pop()], tokens: 2 }));
+  S = { ...S, names, screen: "handoff", players, deck, turn: 0, current: deck.pop(), slot: null, bet: false, betYear: 1995, result: null, revealed: S.mode === "abierto" };
+  save(); render();
+}
+
+function sortedCards(p) { return p.cards.slice().sort((a, b) => byId(a).y - byId(b).y); }
+
+function place() {
+  const p = S.players[S.turn];
+  const tl = sortedCards(p);
+  const song = byId(S.current);
+  const lo = S.slot === 0 ? -Infinity : byId(tl[S.slot - 1]).y;
+  const hi = S.slot === tl.length ? Infinity : byId(tl[S.slot]).y;
+  const ok = song.y >= lo && song.y <= hi;
+  let bonus = false;
+  if (ok) p.cards.push(S.current);
+  if (S.bet && Number(S.betYear) === song.y) { p.tokens++; bonus = true; }
+  S.result = { ok, bonus, id: S.current };
+  S.screen = "result";
+  save(); render();
+  if (ok) confetti(bonus ? 220 : 120);
+}
+
+function skip() {
+  const p = S.players[S.turn];
+  if (p.tokens < 1 || !S.deck.length) return;
+  p.tokens--; S.current = S.deck.pop(); S.slot = null; S.revealed = S.mode === "abierto";
+  save(); render();
+}
+
+function next() {
+  const p = S.players[S.turn];
+  if (p.cards.length >= S.goal) { S.screen = "win"; S.winner = S.turn; save(); render(); confetti(400); return; }
+  if (!S.deck.length) S.deck = shuffle(SONGS.map(s => s.id).filter(id => !S.players.some(pl => pl.cards.includes(id))));
+  S.turn = (S.turn + 1) % S.players.length;
+  S.current = S.deck.pop(); S.slot = null; S.bet = false; S.result = null; S.revealed = S.mode === "abierto";
+  S.screen = S.players.length > 1 ? "handoff" : "play";
+  save(); render();
+}
+
+function scoreboard() {
+  return `<div class="score" role="list">${S.players.map((p, i) => `
+    <div class="chip ${i === S.turn ? "on" : ""}" role="listitem">
+      <span class="av" style="background:${p.color}">${esc(p.name[0].toUpperCase())}</span>
+      ${esc(p.name)} <span class="n">${p.cards.length}/${S.goal}</span><span class="tk" title="Fichas">● ${p.tokens}</span>
+    </div>`).join("")}</div>`;
+}
+
+function render() {
+  const s = S.screen;
+  if (s === "setup") return renderSetup();
+  if (s === "handoff") return renderHandoff();
+  if (s === "play" || s === "result") return renderPlay();
+  if (s === "win") return renderWin();
+}
+
+function renderSetup() {
+  app.innerHTML = `
+  <div class="hero">${VINYL("#ff5d8f")}<div class="intro"><h1>Cronodisco</h1><p class="muted">El juego de fiesta donde ordenas la historia de la música, canción por canción.</p></div></div>
+  <section class="panel">
+    <span class="label">Jugadores</span>
+    <div class="players" id="players">${S.names.map((n, i) => `
+      <div class="prow"><span class="dot" style="background:${COLORS[i % COLORS.length]}"></span>
+      <input id="p${i}" value="${esc(n)}" maxlength="16" aria-label="Jugador ${i + 1}" placeholder="Nombre">
+      <button data-del="${i}" aria-label="Quitar jugador">×</button></div>`).join("")}</div>
+    ${S.names.length < 8 ? `<button class="btn ghost small" id="add">+ Añadir jugador</button>` : ""}
+    <div class="opts">
+      <label><span class="label">Cartas para ganar</span>
+        <select id="goal">${[6, 8, 10, 12].map(g => `<option ${g == S.goal ? "selected" : ""} value="${g}">${g} canciones</option>`).join("")}</select></label>
+      <label><span class="label">Modo</span>
+        <select id="mode">
+          <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto: ves título y artista</option>
+          <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas: el DJ la pone, tú adivinas</option>
+        </select></label>
+    </div>
+    <button class="btn" id="start">Empezar la fiesta</button>
+  </section>
+  <section class="panel">
+    <span class="label">Cómo se juega</span>
+    <ol class="rules">
+      <li>Cada jugador empieza con <b>una canción con su año</b> en su línea de tiempo.</li>
+      <li>En tu turno sale un disco misterioso. Ponlo en YouTube o Spotify y escúchalo en grupo.</li>
+      <li>Toca el hueco donde crees que va: <b>antes, entre o después</b> de tus canciones.</li>
+      <li>Si aciertas, la carta se queda. Si fallas, se va a la basura.</li>
+      <li>Apuesta el <b>año exacto</b> y, si lo clavas, ganas una ficha ●. Gasta fichas para cambiar una canción que no conoces.</li>
+      <li>Gana quien llegue primero a la meta.</li>
+    </ol>
+  </section>
+  <footer>${SONGS.length} canciones de ${SONGS[0].y} a ${SONGS[SONGS.length - 1].y}</footer>`;
+  app.querySelectorAll(".prow input").forEach((inp, i) => inp.addEventListener("input", e => { S.names[i] = e.target.value; save(); }));
+  app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (S.names.length > 1) { S.names.splice(+b.dataset.del, 1); save(); render(); } });
+  const add = document.getElementById("add");
+  if (add) add.onclick = () => { S.names.push(""); save(); render(); document.getElementById("p" + (S.names.length - 1)).focus(); };
+  document.getElementById("goal").onchange = e => { S.goal = +e.target.value; save(); };
+  document.getElementById("mode").onchange = e => { S.mode = e.target.value; save(); };
+  document.getElementById("start").onclick = newGame;
+}
+
+function renderHandoff() {
+  const p = S.players[S.turn];
+  app.innerHTML = `${scoreboard()}
+  <div class="handoff">
+    <span class="label">Pásale el teléfono a</span>
+    <div class="big" style="color:${p.color}">${esc(p.name)}</div>
+    <p class="muted">${p.cards.length} de ${S.goal} canciones · ${p.tokens} fichas</p>
+    <button class="btn" id="go">Estoy listo</button>
+  </div>`;
+  document.getElementById("go").onclick = () => { S.screen = "play"; save(); render(); };
+}
+
+function renderPlay() {
+  const p = S.players[S.turn];
+  const song = byId(S.current);
+  const res = S.screen === "result" ? S.result : null;
+  const tl = sortedCards(p);
+  const listen = `<div class="listen"><a href="${yt(song)}" target="_blank" rel="noopener">▶ YouTube</a><a href="${sp(song)}" target="_blank" rel="noopener">▶ Spotify</a></div>`;
+  const cover = (!S.revealed && !res) ? `<div class="cover"><p><b>Modo a ciegas.</b> Que otra persona (el DJ) ponga la canción sin enseñar la pantalla.</p>${listen}<button class="btn small" id="reveal">Ya sonó: mostrar título</button></div>` : "";
+  let tlHtml = "";
+  tl.forEach((id, i) => {
+    tlHtml += `<button class="slot ${S.slot === i ? "sel" : ""}" data-slot="${i}">${i === 0 ? "Antes de " + byId(id).y : "Entre " + byId(tl[i - 1]).y + " y " + byId(id).y}</button>`;
+    const c = byId(id);
+    tlHtml += `<div class="card ${res && res.ok && id === res.id ? "new" : ""}"><span class="y">${c.y}</span><span class="s"><b>${esc(c.t)}</b><small>${esc(c.a)}</small></span></div>`;
+  });
+  tlHtml += `<button class="slot ${S.slot === tl.length ? "sel" : ""}" data-slot="${tl.length}">Después de ${byId(tl[tl.length - 1]).y}</button>`;
+
+  app.innerHTML = `${scoreboard()}
+  <div class="turn"><h2>Turno de <span style="color:${p.color}">${esc(p.name)}</span></h2><span class="muted">${S.deck.length} discos en la pila</span></div>
+  <section class="mystery ${res ? "" : "spin"}" aria-live="polite">
+    ${VINYL(p.color)}
+    <div class="info">
+      <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
+      <span class="t">${esc(song.t)}</span>
+      <span class="a">${esc(song.a)}</span>
+      ${res ? "" : listen}
+    </div>
+    ${cover}
+  </section>
+  ${res ? `<div class="verdict ${res.ok ? "ok" : "no"}">
+      <strong>${res.ok ? "¡Bien colocada!" : "Fuera de lugar"}</strong>
+      <span>${res.ok ? "La canción se queda en tu línea de tiempo." : `Era de ${song.y}. Esta carta se descarta.`}</span>
+      ${S.bet ? `<span>${res.bonus ? "Clavaste el año exacto: +1 ficha ●" : `Apostaste ${esc(S.betYear)}, no era.`}</span>` : ""}
+    </div>
+    <button class="btn" id="next">${p.cards.length >= S.goal ? "Ver ganador" : "Siguiente turno"}</button>` : `
+    <div class="bet">
+      <input type="checkbox" id="bet" ${S.bet ? "checked" : ""}><label for="bet">Apostar año exacto</label>
+      <input type="number" id="betYear" min="1950" max="2030" value="${esc(S.betYear)}" ${S.bet ? "" : "disabled"} aria-label="Año">
+    </div>
+    <div class="actions">
+      <button class="btn" id="place" ${S.slot === null ? "disabled" : ""}>${S.slot === null ? "Elige un hueco abajo" : "Colocar aquí"}</button>
+      <button class="btn ghost" id="skip" ${p.tokens < 1 ? "disabled" : ""}>Cambiar (● 1)</button>
+    </div>`}
+  <span class="label">Tu línea de tiempo</span>
+  <div class="tl ${res ? "locked" : ""}">${tlHtml}</div>
+  <button class="btn ghost small" id="quit">Terminar partida</button>`;
+
+  app.querySelectorAll("[data-slot]").forEach(b => b.onclick = () => { S.slot = +b.dataset.slot; save(); render(); document.getElementById("place")?.scrollIntoView({ block: "center", behavior: "smooth" }); });
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el[ev] = fn; };
+  on("place", "onclick", place);
+  on("skip", "onclick", skip);
+  on("next", "onclick", next);
+  on("reveal", "onclick", () => { S.revealed = true; save(); render(); });
+  on("bet", "onchange", e => { S.bet = e.target.checked; save(); render(); });
+  on("betYear", "oninput", e => { S.betYear = e.target.value; save(); });
+  on("quit", "onclick", () => { S.screen = "setup"; save(); render(); });
+}
+
+function renderWin() {
+  const w = S.players[S.winner];
+  const rank = S.players.map((p, i) => ({ ...p, i })).sort((a, b) => b.cards.length - a.cards.length || b.tokens - a.tokens);
+  app.innerHTML = `<div class="win">
+    ${VINYL(w.color)}
+    <span class="label">Rey de la pista</span>
+    <div class="crown">${esc(w.name)}</div>
+    <p class="muted">Completó ${S.goal} canciones en orden.</p>
+    <div class="rank">${rank.map((p, k) => `<div class="chip ${p.i === S.winner ? "on" : ""}"><span style="display:flex;gap:8px;align-items:center"><span class="av" style="background:${p.color}">${k + 1}</span>${esc(p.name)}</span><span class="n">${p.cards.length} · ● ${p.tokens}</span></div>`).join("")}</div>
+    <div class="actions" style="width:100%"><button class="btn" id="again">Revancha</button><button class="btn ghost" id="menu">Cambiar jugadores</button></div>
+  </div>`;
+  document.getElementById("again").onclick = newGame;
+  document.getElementById("menu").onclick = () => { S.screen = "setup"; save(); render(); };
+}
+
+// Confeti
+const cv = document.getElementById("confetti"), cx = cv.getContext("2d");
+let parts = [], raf = null;
+function confetti(n) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  cv.width = innerWidth; cv.height = innerHeight;
+  for (let i = 0; i < n; i++) parts.push({ x: innerWidth / 2, y: innerHeight * .35, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 4, r: Math.random() * 6 + 3, c: COLORS[i % COLORS.length], a: Math.random() * 6, life: 120 });
+  if (!raf) tick();
+}
+function tick() {
+  cx.clearRect(0, 0, cv.width, cv.height);
+  parts.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .35; p.vx *= .99; p.a += .2; p.life--; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); cx.restore(); });
+  parts = parts.filter(p => p.life > 0 && p.y < cv.height + 20);
+  raf = parts.length ? requestAnimationFrame(tick) : (cx.clearRect(0, 0, cv.width, cv.height), null);
+}
+
+render();
+</script>
+</body>
+</html>
