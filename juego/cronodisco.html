@@ -79,6 +79,7 @@ button { cursor: pointer; }
 
 /* ---------- Juego ---------- */
 .score { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+button.chip { color: var(--fg); font: inherit; font-size: .9rem; cursor: pointer; }
 .chip { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); font-size: .9rem; }
 .chip.on { border-color: var(--gold); background: var(--card); }
 .chip .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #15102a; font-size: .8rem; }
@@ -305,11 +306,26 @@ function next() {
 }
 
 function scoreboard() {
+  const e = S.editing;
   return `<div class="score" role="list">${S.players.map((p, i) => `
-    <div class="chip ${i === S.turn ? "on" : ""}" role="listitem">
+    <button class="chip ${i === S.turn ? "on" : ""}" role="listitem" data-edit="${i}" title="Toca para cambiar el nombre">
       <span class="av" style="background:${p.color}">${esc(p.name[0].toUpperCase())}</span>
       ${esc(p.name)} <span class="n">${p.cards.length}/${S.goal}</span><span class="tk" title="Fichas">● ${p.tokens}</span>
-    </div>`).join("")}</div>`;
+    </button>`).join("")}</div>
+  ${e != null && S.players[e] ? `<form class="panel" id="renameForm" style="flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px">
+    <label for="rename" class="label" style="flex-basis:100%">Cambiar nombre</label>
+    <input id="rename" value="${esc(S.players[e].name)}" maxlength="16" style="flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px">
+    <button class="btn small" type="submit">Guardar</button>
+    <button class="btn ghost small" type="button" id="renameCancel">Cancelar</button>
+  </form>` : `<p class="muted" style="font-size:.8rem;margin-top:-12px">Toca un nombre para corregirlo.</p>`}`;
+}
+function wireScore() {
+  app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { S.editing = +b.dataset.edit; render(); const r = document.getElementById("rename"); if (r) { r.focus(); r.select(); } });
+  const f = document.getElementById("renameForm");
+  if (f) {
+    f.onsubmit = ev => { ev.preventDefault(); const v = document.getElementById("rename").value.trim(); if (v) { S.players[S.editing].name = v; S.names[S.editing] = v; } S.editing = null; save(); render(); };
+    document.getElementById("renameCancel").onclick = () => { S.editing = null; render(); };
+  }
 }
 
 function render() {
@@ -377,7 +393,8 @@ function renderHandoff() {
     <p class="muted">${p.cards.length} de ${S.goal} canciones · ${p.tokens} fichas</p>
     <button class="btn" id="go">Estoy listo</button>
   </div>`;
-  document.getElementById("go").onclick = () => { S.screen = "play"; save(); render(); };
+  document.getElementById("go").onclick = () => { S.screen = "play"; S.editing = null; save(); render(); };
+  wireScore();
 }
 
 function renderPlay() {
@@ -434,6 +451,7 @@ function renderPlay() {
   on("bet", "onchange", e => { S.bet = e.target.checked; save(); render(); });
   on("betYear", "oninput", e => { S.betYear = e.target.value; save(); });
   on("quit", "onclick", () => { S.screen = "setup"; save(); render(); });
+  wireScore();
 }
 
 function renderWin() {
