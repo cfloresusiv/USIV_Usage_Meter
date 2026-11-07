@@ -21,12 +21,13 @@
   --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 * { box-sizing: border-box; }
-html, body { min-height: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { min-height: 100%; overflow-x: hidden; }
 body {
   background: var(--bg);
   background-image: radial-gradient(circle at 15% -10%, rgba(255,93,143,.22), transparent 45%),
                     radial-gradient(circle at 110% 20%, rgba(61,224,197,.14), transparent 40%);
-  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--fg);
   font-family: var(--f-body);
   font-size: 16px;
@@ -62,16 +63,17 @@ button { cursor: pointer; }
 /* ---------- Setup ---------- */
 .hero { display: flex; gap: 16px; align-items: center; }
 .hero .vinyl { flex: none; width: 92px; height: 92px; }
-.intro { display: flex; flex-direction: column; gap: 6px; }
+.intro { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .panel { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
 .players { display: flex; flex-direction: column; gap: 8px; }
 .prow { display: flex; gap: 8px; align-items: center; }
 .prow .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 .prow input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .prow button { background: none; border: 0; color: var(--muted); font-size: 1.3rem; width: 36px; height: 36px; border-radius: 8px; }
-.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.opts label { display: flex; flex-direction: column; gap: 6px; }
-.opts select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.opts label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.opts select { width: 100%; min-width: 0; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 16px; text-overflow: ellipsis; }
+.panel { min-width: 0; }
 .rules { display: flex; flex-direction: column; gap: 8px; margin: 0; padding-left: 20px; color: var(--muted); }
 .rules b { color: var(--fg); }
 
@@ -147,7 +149,8 @@ button { cursor: pointer; }
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
 footer { text-align: center; font-size: .8rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
-@media (max-width: 420px) { .opts { grid-template-columns: 1fr; } .mystery { grid-template-columns: 72px 1fr; } .mystery .vinyl { width: 72px; height: 72px; } }
+@media (max-width: 480px) { .hero { flex-direction: column; align-items: flex-start; gap: 10px; } .hero .vinyl { width: 64px; height: 64px; } h1 { font-size: 10vw; } }
+@media (max-width: 420px) { .opts { grid-template-columns: minmax(0, 1fr); } .mystery { grid-template-columns: 72px 1fr; } .mystery .vinyl { width: 72px; height: 72px; } }
 </style>
 
 <canvas id="confetti"></canvas>
@@ -332,13 +335,13 @@ function renderSetup() {
         <select id="goal">${[6, 8, 10, 12].map(g => `<option ${g == S.goal ? "selected" : ""} value="${g}">${g} canciones</option>`).join("")}</select></label>
       <label><span class="label">Modo</span>
         <select id="mode">
-          <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto: ves título y artista</option>
-          <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas: el DJ la pone, tú adivinas</option>
+          <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto</option>
+          <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas (con DJ)</option>
         </select></label>
       <label style="grid-column:1/-1"><span class="label">Mazo</span>
         <select id="mazo">
-          <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40 (rock chileno, carretes de los 80, 90 y 2000)</option>
-          <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas (1957 a 2024)</option>
+          <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40</option>
+          <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas</option>
         </select></label>
     </div>
     <button class="btn" id="start">Empezar el carrete</button>
