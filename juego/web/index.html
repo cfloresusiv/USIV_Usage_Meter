@@ -262,8 +262,32 @@ const SONGS = [
 ["Crimen","Gustavo Cerati",2006],["Mientes","Camila",2010]
 ].map(([t,a,y,cl],i)=>({id:i,t,a,y,cl:!!cl}));
 
+// Teleseries chilenas: [nombre, canal, año de estreno]
+[
+["La Madrastra","Canal 13",1981],["Los Títeres","Canal 13",1984],["Ángel Malo","Canal 13",1986],["La Invitación","Canal 13",1987],
+["Semidiós","Canal 13",1988],["Bellas y Audaces","TVN",1988],["La Intrusa","Canal 13",1989],["A la Sombra del Ángel","TVN",1989],
+["Villa Nápoli","Canal 13",1991],["Volver a Empezar","Canal 13",1991],["Trampas y Caretas","TVN",1992],["Marrón Glacé","Canal 13",1993],
+["Jaque Mate","TVN",1993],["Ámame","TVN",1993],["Rompecorazón","TVN",1994],["Champaña","Canal 13",1994],
+["Estúpido Cupido","TVN",1995],["Amor a Domicilio","Canal 13",1995],["Sucupira","TVN",1996],["Loca Piel","TVN",1996],
+["Oro Verde","TVN",1997],["Tic Tac","TVN",1997],["Playa Salvaje","Canal 13",1997],["Iorana","TVN",1998],
+["Borrón y Cuenta Nueva","TVN",1998],["Marparaíso","Canal 13",1998],["Fuera de Control","Canal 13",1999],["Aquelarre","TVN",1999],
+["La Fiera","TVN",1999],["Romané","TVN",2000],["Sabor a Ti","Canal 13",2000],["Amores de Mercado","TVN",2001],
+["Pampa Ilusión","TVN",2001],["Piel Canela","Canal 13",2001],["Purasangre","TVN",2002],["El Circo de las Montini","TVN",2002],
+["Machos","Canal 13",2003],["Puertas Adentro","TVN",2003],["16","TVN",2003],["Hippie","Canal 13",2004],
+["Los Pincheira","TVN",2004],["Destinos Cruzados","TVN",2004],["Brujas","Canal 13",2005],["Los Capo","TVN",2005],
+["Floribella","TVN",2006],["Cómplices","TVN",2006],["Charly Tango","Canal 13",2006],["Montecristo","Mega",2006],
+["Alguien te Mira","TVN",2007],["Papi Ricky","Canal 13",2007],["Lola","Canal 13",2007],["Corazón de María","TVN",2007],
+["Hijos del Monte","TVN",2008],["Viuda Alegre","TVN",2008],["Los Exitosos Pells","TVN",2009],["¿Dónde está Elisa?","TVN",2009],
+["Conde Vrolok","TVN",2009],["Martín Rivas","TVN",2010],["Primera Dama","Canal 13",2010],["La Doña","Chilevisión",2011],
+["Témpano","TVN",2011],["Pituca sin Lucas","Mega",2014],["Papá a la Deriva","Mega",2015],["Pobre Gallo","Mega",2016],
+["Perdona Nuestros Pecados","Mega",2017],["Verdades Ocultas","Mega",2017]
+].forEach(([t,a,y]) => SONGS.push({ id: SONGS.length, t, a, y, cl: true, tv: true }));
+
 // Mazos: "chile40" = todo lo chileno + lo que sonaba entre 1980 y 2012 (la juventud de quien hoy tiene ~40)
-const pool = () => SONGS.filter(s => S.mazo === "todo" || s.cl || (s.y >= 1980 && s.y <= 2012)).map(s => s.id);
+const pool = () => SONGS.filter(s =>
+  S.mazo === "teles" ? s.tv
+  : S.mazo === "mezcla" ? (s.tv || s.cl || (s.y >= 1980 && s.y <= 2012))
+  : !s.tv && (S.mazo === "todo" || s.cl || (s.y >= 1980 && s.y <= 2012))).map(s => s.id);
 
 const COLORS = ["#ffc23d","#3de0c5","#ff5d8f","#9b8cff","#ff9f43","#7bed6f","#5ec8ff","#ff7ad9"];
 const KEY = "cronodisco-v1";
@@ -271,7 +295,7 @@ const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const byId = id => SONGS[id];
-const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a);
+const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.tv ? `teleserie ${s.t} ${s.a} cortina` : s.t + " " + s.a);
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
 let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "oido" };
@@ -305,6 +329,7 @@ function getPreview(id) {
   if (previews[id] !== undefined) return Promise.resolve(previews[id]);
   if (previews["p" + id]) return previews["p" + id];
   const s = byId(id);
+  if (s.tv) return Promise.resolve(null);
   const t = s.t.replace(/\(.*?\)/g, "").replace(/[^\p{L}\p{N}' ]/gu, " ").replace(/\s+/g, " ").trim(), a = mainArtist(s.a);
   previews["p" + id] = (async () => {
     // 1) iTunes
@@ -418,6 +443,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
+  if (byId(id).tv) return;
   if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
@@ -550,7 +576,9 @@ function renderSetup() {
       <label style="grid-column:1/-1"><span class="label">Mazo</span>
         <select id="mazo">
           <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40</option>
-          <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas</option>
+          <option value="teles" ${S.mazo === "teles" ? "selected" : ""}>Teleseries chilenas</option>
+          <option value="mezcla" ${S.mazo === "mezcla" ? "selected" : ""}>Mezcla: canciones + teleseries</option>
+          <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas (música)</option>
         </select></label>
     </div>
     ${SP_CLIENT_ID ? `<div class="spbox">
@@ -574,7 +602,7 @@ function renderSetup() {
       <li>Gana quien llegue primero a la meta.</li>
     </ol>
   </section>
-  <footer>${pool().length} canciones en este mazo · ${SONGS.filter(s => s.cl).length} hechas en Chile</footer>`;
+  <footer>${pool().length} cartas en este mazo · ${SONGS.filter(s => s.cl && !s.tv).length} canciones chilenas · ${SONGS.filter(s => s.tv).length} teleseries</footer>`;
   app.querySelectorAll(".prow input").forEach((inp, i) => inp.addEventListener("input", e => { S.names[i] = e.target.value; save(); }));
   app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (S.names.length > 1) { S.names.splice(+b.dataset.del, 1); save(); render(); } });
   const add = document.getElementById("add");
@@ -609,7 +637,8 @@ function renderPlay() {
   const tl = sortedCards(p);
   const listen = `<div class="listen"><a href="${yt(song)}" target="_blank" rel="noopener">YouTube</a><a href="${sp(song)}" target="_blank" rel="noopener">Spotify</a></div>`;
   const playBtn = `<button class="btn play" id="playBtn" type="button">▶ Escuchar</button><div class="prog" aria-hidden="true"><i id="progBar"></i></div>`;
-  const blind = !S.revealed && !res;
+  const blind = !S.revealed && !res && !song.tv;
+  const tvBtn = `<a class="btn play" href="${yt(song)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">▶ Ver la cortina</a>`;
   const cover = blind ? `<div class="cover">
       ${VINYL(p.color)}
       <p><b>¿De qué año es?</b> Escucha y colócala en tu línea. El título aparece al final.</p>
@@ -631,11 +660,12 @@ function renderPlay() {
     ${VINYL(p.color)}
     <div class="info">
       <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
-      <span class="t">${esc(song.t)}</span>${song.cl ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
+      ${song.tv ? `<span class="label" style="color:#fff">Teleserie chilena</span>` : ""}
+      <span class="t">${esc(song.t)}</span>${song.cl && !song.tv ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${blind ? "" : playBtn}
-      ${listen}
-      ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
+      ${song.tv ? tvBtn : blind ? "" : playBtn}
+      ${song.tv ? "" : listen}
+      ${spOn() && !blind && !song.tv ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
     ${cover}
   </section>
