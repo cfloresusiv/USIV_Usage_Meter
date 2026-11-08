@@ -455,6 +455,7 @@ async function spShowDevices() {
     document.getElementById("spHere").onclick = usePhone;
     box.querySelectorAll("[data-dev]").forEach(b => b.onclick = async () => {
       SPT.device = { id: b.dataset.dev, name: b.dataset.name, chosen: true }; spSave();
+      if (spBroken || !viaSpotify) { spBroken = false; stopSong(); paintDevBox(); return startSong(S.current); }
       try { await spApi("/me/player", { method: "PUT", body: JSON.stringify({ device_ids: [b.dataset.dev], play: player === "playing" }) }); } catch (e) {}
       spMsg = "Sonando en Spotify · " + b.dataset.name; paintSpMsg(); paintDevBox();
     });
@@ -463,19 +464,19 @@ async function spShowDevices() {
 function usePhone() {
   if (viaSpotify) spApi("/me/player/pause", { method: "PUT" }).catch(() => {});
   stopSong(); spBroken = true; spMsg = "Sonando en este celular (vista previa)."; paintSpMsg();
-  const box = document.getElementById("spDevBox"); if (box) box.innerHTML = `<span class="muted">Suena en: <b>este celular</b> (vista previa). Para volver a Spotify, recarga la página.</span>`;
+  paintDevBox();
   itunesPlay(S.current);
 }
 function paintDevBox() {
   const box = document.getElementById("spDevBox");
   if (!box) return;
-  box.innerHTML = `<span class="muted">Suena en: <b>${esc(SPT.device ? SPT.device.name : "tu Spotify")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
+  box.innerHTML = `<span class="muted">Suena en: <b>${spBroken ? "este celular (vista previa)" : esc(SPT.device ? SPT.device.name : "tu celular")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
   document.getElementById("spDevBtn").onclick = spShowDevices;
 }
 async function spDevice() {
   const j = await spApi("/me/player/devices");
   const ds = j.devices || [];
-  const d = ds.find(x => SPT.device && SPT.device.chosen && x.id === SPT.device.id) || ds.find(x => x.type === "Smartphone") || ds.find(x => x.is_active) || ds[0];
+  const d = ds.find(x => SPT.device && SPT.device.chosen && x.id === SPT.device.id) || ds.find(x => x.type === "Smartphone");
   if (d && SPT.device && SPT.device.chosen && d.id === SPT.device.id) return d;
   if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
   return d || null;
@@ -490,7 +491,7 @@ async function spPlay(id) {
     if (!uri) { spMsg = byId(id).tv ? "Spotify no tiene esta cortina; busco en iTunes y Deezer." : "Spotify no encontró esta canción; suena la vista previa."; paintSpMsg(); return itunesPlay(id); }
     step = "dispositivos";
     const d = await spDevice();
-    if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
+    if (!d) { spBroken = true; spMsg = "Suena aquí (vista previa). Para la canción completa abre Spotify en el iPhone y elige tu celular en \"Cambiar dónde suena\"."; paintSpMsg(); paintDevBox(); return itunesPlay(id); }
     step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
     viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); paintDevBox(); setPlayer("playing");
@@ -747,7 +748,7 @@ function renderPlay() {
       <button class="btn" id="place" ${S.slot === null ? "disabled" : ""}>${S.slot === null ? "Elige un hueco abajo" : "Colocar aquí"}</button>
       <button class="btn ghost" id="skip" ${p.tokens < 1 ? "disabled" : ""}>Cambiar (● 1)</button>
     </div>`}
-  ${spOn() && !spBroken ? `<div class="devbox" id="spDevBox"></div>` : ""}
+  ${spOn() ? `<div class="devbox" id="spDevBox"></div>` : ""}
   <span class="label">Tu línea de tiempo</span>
   <div class="tl ${res ? "locked" : ""}">${tlHtml}</div>
   <button class="btn ghost small" id="quit">Terminar partida</button>`;
