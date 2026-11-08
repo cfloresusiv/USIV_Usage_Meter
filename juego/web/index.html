@@ -475,6 +475,22 @@ function usePhone() {
   paintDevBox();
   itunesPlay(S.current);
 }
+// Antes de cada turno: busca la canción en Spotify y revisa que haya dónde tocarla.
+async function spPrecheck() {
+  const box = document.getElementById("spCheck");
+  if (!box || !spOn() || spBroken) return;
+  const id = S.current;
+  try {
+    const uri = await spFind(id);
+    const d = await spDevice();
+    if (S.current !== id || !document.getElementById("spCheck")) return;
+    spNoDevice = !d;
+    if (d) { box.innerHTML = `<span class="muted">Spotify listo · suena en <b>${esc(d.name)}</b></span>`; return; }
+    spLastUri = uri;
+    const song = byId(id), showTrack = uri && (song.tv || S.mode === "abierto");
+    box.innerHTML = `<span class="muted"><b>Spotify está dormido en tu iPhone.</b> Ábrelo, dale play a cualquier cosa y vuelve: así esta canción suena completa.</span><a class="btn small sp" href="${showTrack ? "https://open.spotify.com/track/" + uri.split(":").pop() : "https://open.spotify.com/"}" target="_blank" rel="noopener" style="text-decoration:none">▶ Abrir Spotify</a>`;
+  } catch (e) { box.innerHTML = ""; }
+}
 function paintDevBox() {
   const box = document.getElementById("spDevBox");
   if (!box) return;
@@ -491,7 +507,7 @@ async function spDevice() {
   return d || null;
 }
 let spMsg = "", spBroken = false, spNoDevice = false, spLastUri = null;
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && spNoDevice) { spNoDevice = false; paintDevBox(); if (player === "none") setPlayer("idle"); } });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && spNoDevice) { spNoDevice = false; paintDevBox(); if (player === "none") setPlayer("idle"); if (S.screen === "handoff") spPrecheck(); } });
 async function spPlay(id) {
   setPlayer("loading");
   let step = "buscar";
@@ -544,8 +560,8 @@ function toggleSong() {
   if (player === "paused") { audio.play().then(() => setPlayer("playing")).catch(() => setPlayer("idle")); return; }
   startSong(S.current);
 }
+// Spotify no se pausa entre turnos: si sigue sonando, el iPhone no "duerme" la app y el siguiente turno suena al tiro.
 function stopSong() {
-  if (viaSpotify && player === "playing") spApi("/me/player/pause", { method: "PUT" }).catch(() => {});
   audio.pause(); audio.removeAttribute("src"); try { audio.load(); } catch (e) {} player = "idle"; viaSpotify = false;
 }
 audio.addEventListener("ended", () => setPlayer("paused"));
@@ -699,8 +715,10 @@ function renderHandoff() {
     <div class="big" style="color:${p.color}">${esc(p.name)}</div>
     <p class="muted">${p.cards.length} de ${S.goal} canciones · ${p.tokens} fichas</p>
     <button class="btn" id="go">Estoy listo</button>
+    <div class="devbox" id="spCheck" style="max-width:420px"></div>
   </div>`;
   getPreview(S.current);
+  spPrecheck();
   document.getElementById("go").onclick = () => { S.screen = "play"; S.editing = null; save(); render(); startSong(S.current); };
   wireScore();
 }
