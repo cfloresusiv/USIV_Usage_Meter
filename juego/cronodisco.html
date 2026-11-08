@@ -288,11 +288,45 @@ const SONGS = [
 ["Conde Vrolok","TVN",2009],["Martín Rivas","TVN",2010],["Primera Dama","Canal 13",2010],["La Doña","Chilevisión",2011],
 ["Témpano","TVN",2011],["Pituca sin Lucas","Mega",2014],["Papá a la Deriva","Mega",2015],["Pobre Gallo","Mega",2016],
 ["Perdona Nuestros Pecados","Mega",2017],["Verdades Ocultas","Mega",2017]
-].forEach(([t,a,y]) => SONGS.push({ id: SONGS.length, t, a, y, cl: true, tv: true }));
+].forEach(([t,a,y]) => SONGS.push({ id: SONGS.length, t, a, y, cl: true, tv: true, tvLabel: "Teleserie chilena", qs: "teleserie", what: "cortina" }));
+
+// Reggaetón old school: [canción, artista, año]
+[
+["Quiero bailar","Ivy Queen",2003],["Dale Don Dale","Don Omar",2003],["Pobre diabla","Don Omar",2003],
+["Lo que pasó, pasó","Daddy Yankee",2004],["Saoco","Wisin ft. Daddy Yankee",2004],["Yo voy","Zion & Lennox ft. Daddy Yankee",2004],
+["Oye mi canto","N.O.R.E. ft. Daddy Yankee, Nina Sky, Gem Star y Big Mato",2004],["Rompe","Daddy Yankee",2005],["Machucando","Daddy Yankee",2005],
+["Mayor que yo","Baby Ranks, Daddy Yankee, Tonny Tun Tun, Wisin & Yandel y Héctor el Father",2005],["Pam pam","Wisin & Yandel",2005],
+["Atrévete-te-te","Calle 13",2005],["Reggaetón latino","Don Omar",2005],["Salió el sol","Don Omar",2006],["Angelito","Don Omar",2006],
+["Noche de entierro (Nuestro amor)","Wisin & Yandel, Daddy Yankee, Héctor el Father, Tonny Tun Tun y Zion",2006],
+["Llamé pa' verte (Bailando sexy)","Wisin & Yandel",2006],["Down","Rakim & Ken-Y",2006],["Impacto","Daddy Yankee",2007],
+["Ella me levantó","Daddy Yankee",2007],["Sexy movimiento","Wisin & Yandel",2007],["Te quiero","Flex",2007],
+["Llamado de emergencia","Daddy Yankee",2008],["Pose","Daddy Yankee",2008],["Abusadora","Wisin & Yandel",2009],
+["Virtual Diva","Don Omar",2009],["El amor","Tito El Bambino",2009]
+].forEach(([t,a,y]) => SONGS.push({ id: SONGS.length, t, a, y, reg: true }));
+SONGS.forEach(s => { if (!s.tv && ["Gasolina","Dile","Rakata","Ella y yo","Danza Kuduro","Con calma"].includes(s.t)) s.reg = true; });
+
+// Música de monitos: [serie, tipo, año de estreno]
+[
+["Los Picapiedra","Serie animada",1960],["Los Supersónicos","Serie animada",1962],["Scooby-Doo, ¿dónde estás?","Serie animada",1969],
+["La Pantera Rosa","Serie animada",1969],["Mazinger Z","Anime",1972],["Heidi","Anime",1974],["Candy Candy","Anime",1976],["Marco","Anime",1976],
+["Doraemon","Anime",1979],["Los Pitufos","Serie animada",1981],["Supercampeones","Anime",1983],["He-Man y los Amos del Universo","Serie animada",1983],
+["Alvin y las ardillas","Serie animada",1983],["Transformers","Serie animada",1984],["Muppet Babies","Serie animada",1984],["Thundercats","Serie animada",1985],
+["Los Caballeros del Zodiaco","Anime",1986],["Dragon Ball","Anime",1986],["Los Cazafantasmas","Serie animada",1986],["Las Tortugas Ninja","Serie animada",1987],
+["Patoaventuras","Serie animada",1987],["Garfield y sus amigos","Serie animada",1988],["Dragon Ball Z","Anime",1989],["Ranma ½","Anime",1989],
+["Los Simpson","Serie animada",1989],["Chip y Dale al rescate","Serie animada",1989],["Tiny Toons","Serie animada",1990],["Rugrats","Serie animada",1991],
+["Doug","Serie animada",1991],["Sailor Moon","Anime",1992],["Batman: la serie animada","Serie animada",1992],["X-Men","Serie animada",1992],
+["Animaniacs","Serie animada",1993],["Gárgolas","Serie animada",1994],["Spider-Man","Serie animada",1994],["Pinky y Cerebro","Serie animada",1995],
+["El laboratorio de Dexter","Serie animada",1996],["Hey Arnold!","Serie animada",1996],["Johnny Bravo","Serie animada",1997],["Pokémon","Anime",1997],
+["Las Chicas Superpoderosas","Serie animada",1998],["Sakura Card Captor","Anime",1998],["Digimon","Anime",1999],["Bob Esponja","Serie animada",1999],
+["Hamtaro","Anime",2000],["Los Padrinos Mágicos","Serie animada",2001],["31 Minutos","Serie chilena",2003],["Ben 10","Serie animada",2005],
+["Avatar: la leyenda de Aang","Serie animada",2005],["Phineas y Ferb","Serie animada",2007],["Hora de aventura","Serie animada",2010],["Gravity Falls","Serie animada",2012]
+].forEach(([t,a,y]) => SONGS.push({ id: SONGS.length, t, a, y, tv: true, mon: true, cl: a === "Serie chilena", tvLabel: "Música de monitos", qs: "opening", what: "opening" }));
 
 // Mazos: "chile40" = todo lo chileno + lo que sonaba entre 1980 y 2012 (la juventud de quien hoy tiene ~40)
 const pool = () => SONGS.filter(s =>
-  S.mazo === "teles" ? s.tv
+  S.mazo === "teles" ? s.tv && !s.mon
+  : S.mazo === "monitos" ? s.mon
+  : S.mazo === "reggaeton" ? s.reg
   : S.mazo === "mezcla" ? (s.tv || s.cl || (s.y >= 1980 && s.y <= 2012))
   : !s.tv && (S.mazo === "todo" || s.cl || (s.y >= 1980 && s.y <= 2012))).map(s => s.id);
 
@@ -303,9 +337,9 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const byId = id => SONGS[id];
 const yt = s => s.tv
-  ? "https://www.google.com/search?tbm=vid&q=" + encodeURIComponent(`cortina teleserie ${s.t} ${s.a}`)
+  ? "https://www.google.com/search?tbm=vid&q=" + encodeURIComponent(s.mon ? `${s.t} opening latino` : `cortina teleserie ${s.t} ${s.a}`)
   : "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a) + "&sp=EgIQAQ%253D%253D";
-const spSearch = s => "https://open.spotify.com/search/" + encodeURIComponent(s.tv ? `${s.t} teleserie` : `${s.t} ${mainArtist(s.a)}`);
+const spSearch = s => "https://open.spotify.com/search/" + encodeURIComponent(s.tv ? `${s.t} ${s.qs}` : `${s.t} ${mainArtist(s.a)}`);
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
 let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "oido" };
@@ -359,20 +393,20 @@ function getPreview(id) {
   return previews["p" + id];
 }
 // Cortina de teleserie: solo se acepta si el disco/tema nombra la teleserie y además dice que es de TV.
-const TV_WORDS = ["teleserie", "telenovela", "banda sonora", "soundtrack", "original", "tema", "tvn", "canal 13", "mega", "chilevision", "cortina", "serie"];
+const TV_WORDS = ["opening", "intro", "theme", "anime", "ending", "serie animada", "teleserie", "telenovela", "banda sonora", "soundtrack", "original", "tema", "tvn", "canal 13", "mega", "chilevision", "cortina", "serie"];
 async function getTvTheme(id) {
   const s = byId(id), name = norm(s.t);
   const ok = (...fields) => { const txt = norm(fields.filter(Boolean).join(" | ")); return (" " + txt + " ").includes(" " + name + " ") && TV_WORDS.some(w => (" " + txt + " ").includes(" " + w + " ")); };
   const tries = [
-    () => jsonp("https://itunes.apple.com/search?media=music&entity=song&limit=25&country=CL&term=" + encodeURIComponent(s.t + " teleserie"), "callback")
+    () => jsonp("https://itunes.apple.com/search?media=music&entity=song&limit=25&country=CL&term=" + encodeURIComponent(s.t + " " + s.qs), "callback")
       .then(d => ((d && d.results) || []).find(r => r.previewUrl && ok(r.trackName, r.collectionName))).then(r => r && r.previewUrl),
-    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.t + " teleserie"), "callback")
+    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.t + " " + s.qs), "callback")
       .then(d => ((d && d.data) || []).find(r => r.preview && ok(r.title, r.album && r.album.title))).then(r => r && r.preview),
-    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.t + " " + s.a + " tema"), "callback")
+    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.what + " " + s.t), "callback")
       .then(d => ((d && d.data) || []).find(r => r.preview && ok(r.title, r.album && r.album.title))).then(r => r && r.preview),
   ];
   for (const t of tries) { const u = await t().catch(() => null); if (u) return (previews[id] = u); }
-  audioDiag = "No encontré la cortina en iTunes ni Deezer.";
+  audioDiag = "No lo encontré en iTunes ni Deezer.";
   return (previews[id] = null);
 }
 let player = "idle"; // idle | loading | playing | paused | none
@@ -383,8 +417,8 @@ function paintPlayer() {
   if (m) m.classList.toggle("spin", player === "playing");
   if (!b) return;
   b.disabled = player === "loading";
-  const tv = S.current != null && byId(S.current) && byId(S.current).tv;
-  b.textContent = { idle: tv ? "▶ Escuchar la cortina" : "▶ Escuchar", loading: "Buscando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: tv ? "Sin cortina aquí · busca el video abajo" : "Sin audio · usa YouTube" }[player];
+  const cs = S.current != null && byId(S.current), tv = cs && cs.tv, w = tv ? (cs.what === "opening" ? "el opening" : "la cortina") : "";
+  b.textContent = { idle: tv ? `▶ Escuchar ${w}` : "▶ Escuchar", loading: "Buscando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: tv ? `Sin audio · busca el video abajo` : "Sin audio · usa YouTube" }[player];
   if (player === "none") { b.disabled = true; const pg = b.parentNode.querySelector(".prog"); if (pg && audioDiag) { pg.outerHTML = `<small class="diag" style="opacity:.85">${esc(audioDiag)}</small>`; } }
 }
 // ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
@@ -435,7 +469,7 @@ async function spFind(id) {
     const hasName = x => txtOf(x).includes(" " + name + " ");
     const strict = x => hasName(x) && TV_WORDS.some(w => txtOf(x).includes(" " + w + " "));
     const results = [];
-    for (const q of [`${s.t} teleserie`, `tema teleserie ${s.t} ${s.a}`, `album:${s.t}`]) {
+    for (const q of [`${s.t} ${s.qs}`, `${s.what} ${s.t}`, `album:${s.t}`]) {
       const j = await spApi("/search?" + new URLSearchParams({ q, type: "track", limit: "10", market: "CL" }));
       const items = (j.tracks && j.tracks.items) || [];
       results.push(items);
@@ -720,7 +754,9 @@ function renderSetup() {
         <select id="mazo">
           <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40</option>
           <option value="teles" ${S.mazo === "teles" ? "selected" : ""}>Teleseries chilenas</option>
-          <option value="mezcla" ${S.mazo === "mezcla" ? "selected" : ""}>Mezcla: canciones + teleseries</option>
+          <option value="reggaeton" ${S.mazo === "reggaeton" ? "selected" : ""}>Reggaetón old school</option>
+          <option value="monitos" ${S.mazo === "monitos" ? "selected" : ""}>Música de monitos</option>
+          <option value="mezcla" ${S.mazo === "mezcla" ? "selected" : ""}>Mezcla total</option>
           <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas (música)</option>
         </select></label>
     </div>
@@ -745,7 +781,7 @@ function renderSetup() {
       <li>Gana quien llegue primero a la meta.</li>
     </ol>
   </section>
-  <footer>${pool().length} cartas en este mazo · ${SONGS.filter(s => s.cl && !s.tv).length} canciones chilenas · ${SONGS.filter(s => s.tv).length} teleseries</footer>`;
+  <footer>${pool().length} cartas en este mazo · ${SONGS.filter(s => s.cl && !s.tv).length} canciones chilenas · ${SONGS.filter(s => s.tv && !s.mon).length} teleseries · ${SONGS.filter(s => s.reg).length} reggaetones · ${SONGS.filter(s => s.mon).length} monitos</footer>`;
   app.querySelectorAll(".prow input").forEach((inp, i) => inp.addEventListener("input", e => { S.names[i] = e.target.value; save(); }));
   app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (S.names.length > 1) { S.names.splice(+b.dataset.del, 1); save(); render(); } });
   const add = document.getElementById("add");
@@ -818,10 +854,10 @@ function renderPlay() {
     ${VINYL(p.color)}
     <div class="info">
       <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
-      ${song.tv ? `<span class="label" style="color:#fff">Teleserie chilena</span>` : ""}
+      ${song.tv ? `<span class="label" style="color:#fff">${esc(song.tvLabel)}</span>` : ""}
       <span class="t">${esc(song.t)}</span>${song.cl && !song.tv ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${dj ? (blind ? "" : djOpen) : song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Buscar el video de la cortina") : blind ? "" : playBtn}
+      ${dj ? (blind ? "" : djOpen) : song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", `Buscar el video ${song.mon ? "del opening" : "de la cortina"}`) : blind ? "" : playBtn}
       ${song.tv || dj ? "" : listen}
       ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
