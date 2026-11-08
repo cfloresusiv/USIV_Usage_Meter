@@ -120,6 +120,11 @@ button.chip { color: var(--fg); font: inherit; font-size: .9rem; cursor: pointer
 .btn.play[disabled] { opacity: .8; }
 .prog { height: 4px; width: 100%; max-width: 220px; background: rgba(255,255,255,.25); border-radius: 4px; overflow: hidden; }
 .prog i { display: block; height: 100%; width: 0; background: #fff; transition: width .25s linear; }
+.embedbox { position: fixed; z-index: 40; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); max-width: 528px; margin: 0 auto; border-radius: 12px; overflow: hidden; height: 80px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+body:has(#spEmbed:not([hidden])) .wrap { padding-bottom: 120px; }
+.embedbox iframe { display: block; border: 0; }
+.embedmask { display: none; }
+.embedbox.masked .embedmask { display: flex; align-items: center; padding: 0 14px; position: absolute; left: 0; top: 0; bottom: 0; right: 72px; background: linear-gradient(135deg, var(--pink), #8c3cff); color: #fff; font-weight: 700; font-size: .9rem; z-index: 2; }
 .devbox { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .devbox:empty { display: none; }
 .devs { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -178,6 +183,7 @@ footer { text-align: center; font-size: .8rem; color: var(--muted); }
 <body>
 <canvas id="confetti"></canvas>
 <main class="wrap" id="app"></main>
+<div class="embedbox" id="spEmbed" hidden><div class="embedslot"></div><div class="embedmask">Escucha y adivina · el título aparece al final</div></div>
 
 <script>
 const VINYL = (label) => `<svg class="vinyl" viewBox="0 0 100 100" aria-hidden="true">
@@ -459,10 +465,11 @@ async function spShowDevices() {
     const ds = (await spApi("/me/player/devices")).devices || [];
     if (!ds.length) { box.innerHTML = `<button class="btn small" id="spHere" type="button">Que suene en este celular</button><span class="muted">No veo dispositivos de Spotify. Abre la app de Spotify en el celular o parlante, dale play a algo y vuelve a tocar.</span> <button class="btn ghost small" id="spDevAgain" type="button">Buscar otra vez</button>`; document.getElementById("spDevAgain").onclick = spShowDevices; document.getElementById("spHere").onclick = usePhone; return; }
     const icon = t => ({ Smartphone: "Celular", Speaker: "Parlante", TV: "TV", Computer: "Computador", CastVideo: "Chromecast", CastAudio: "Chromecast" }[t] || t);
-    box.innerHTML = `<span class="label">¿Dónde suena?</span><div class="devs"><button class="btn small ghost" id="spHere" type="button">Este celular · vista previa 30 s</button>${ds.map(d => `<button class="btn small ${SPT.device && d.id === SPT.device.id ? "" : "ghost"}" data-dev="${esc(d.id)}" data-name="${esc(d.name)}" type="button">${esc(d.name)} · ${esc(icon(d.type))}</button>`).join("")}</div>`;
+    box.innerHTML = `<span class="label">¿Dónde suena?</span><div class="devs"><button class="btn small ${spPhone ? "" : "ghost"}" id="spHere" type="button">Este celular</button>${ds.map(d => `<button class="btn small ${SPT.device && d.id === SPT.device.id ? "" : "ghost"}" data-dev="${esc(d.id)}" data-name="${esc(d.name)}" type="button">${esc(d.name)} · ${esc(icon(d.type))}</button>`).join("")}</div>`;
     document.getElementById("spHere").onclick = usePhone;
     box.querySelectorAll("[data-dev]").forEach(b => b.onclick = async () => {
       SPT.device = { id: b.dataset.dev, name: b.dataset.name, chosen: true }; spSave();
+      spPhone = false;
       if (spBroken || spNoDevice || !viaSpotify) { spBroken = false; spNoDevice = false; stopSong(); paintDevBox(); return startSong(S.current); }
       try { await spApi("/me/player", { method: "PUT", body: JSON.stringify({ device_ids: [b.dataset.dev], play: player === "playing" }) }); } catch (e) {}
       spMsg = "Sonando en Spotify · " + b.dataset.name; paintSpMsg(); paintDevBox();
@@ -471,9 +478,8 @@ async function spShowDevices() {
 }
 function usePhone() {
   if (viaSpotify) spApi("/me/player/pause", { method: "PUT" }).catch(() => {});
-  stopSong(); spBroken = true; spMsg = "Sonando en este celular (vista previa)."; paintSpMsg();
-  paintDevBox();
-  itunesPlay(S.current);
+  stopSong(); spPhone = true; paintDevBox();
+  startSong(S.current);
 }
 // Antes de cada turno: busca la canción en Spotify y revisa que haya dónde tocarla.
 async function spPrecheck() {
@@ -482,20 +488,20 @@ async function spPrecheck() {
   const id = S.current;
   try {
     const uri = await spFind(id);
-    const d = await spDevice();
+    const d = spPhone ? null : await spDevice();
     if (S.current !== id || !document.getElementById("spCheck")) return;
     spNoDevice = !d;
     if (d) { box.innerHTML = `<span class="muted">Spotify listo · suena en <b>${esc(d.name)}</b></span>`; return; }
     spLastUri = uri;
-    const song = byId(id), showTrack = uri && (song.tv || S.mode === "abierto");
-    box.innerHTML = `<span class="muted"><b>Spotify está dormido en tu iPhone.</b> Ábrelo, dale play a cualquier cosa y vuelve: así esta canción suena completa.</span><a class="btn small sp" href="${showTrack ? "https://open.spotify.com/track/" + uri.split(":").pop() : "https://open.spotify.com/"}" target="_blank" rel="noopener" style="text-decoration:none">▶ Abrir Spotify</a>`;
+    box.innerHTML = `<span class="muted">Spotify listo · suena en <b>este celular</b></span>`;
+    loadEmbedApi();
   } catch (e) { box.innerHTML = ""; }
 }
 function paintDevBox() {
   const box = document.getElementById("spDevBox");
   if (!box) return;
   const openUrl = spLastUri ? "https://open.spotify.com/track/" + spLastUri.split(":").pop() : "https://open.spotify.com/";
-  box.innerHTML = spNoDevice ? `<span class="muted"><b>Spotify está cerrado en tu iPhone.</b> Ábrelo con este botón, dale play y vuelve aquí: desde el siguiente turno todo suena completo.</span><a class="btn small sp" href="${openUrl}" target="_blank" rel="noopener" style="text-decoration:none">▶ Tocar en Spotify</a> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>` : `<span class="muted">Suena en: <b>${spBroken ? "este celular (vista previa)" : esc(SPT.device ? SPT.device.name : "tu celular")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
+  box.innerHTML = false ? `<span class="muted"><b>Spotify está cerrado en tu iPhone.</b> Ábrelo con este botón, dale play y vuelve aquí: desde el siguiente turno todo suena completo.</span><a class="btn small sp" href="${openUrl}" target="_blank" rel="noopener" style="text-decoration:none">▶ Tocar en Spotify</a> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>` : `<span class="muted">Suena en: <b>${spBroken ? "este celular (vista previa)" : (spPhone || spNoDevice) ? "este celular (Spotify)" : esc(SPT.device ? SPT.device.name : "tu celular")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
   document.getElementById("spDevBtn").onclick = spShowDevices;
 }
 async function spDevice() {
@@ -506,8 +512,37 @@ async function spDevice() {
   if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
   return d || null;
 }
-let spMsg = "", spBroken = false, spNoDevice = false, spLastUri = null;
+let spMsg = "", spBroken = false, spNoDevice = false, spLastUri = null, spPhone = false;
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && spNoDevice) { spNoDevice = false; paintDevBox(); if (player === "none") setPlayer("idle"); if (S.screen === "handoff") spPrecheck(); } });
+// ---------- Reproductor de Spotify dentro de la página (suena en este celular, sin la app) ----------
+let embedApi = null, embedCtl = null, viaEmbed = false;
+function loadEmbedApi() {
+  if (embedApi) return embedApi;
+  embedApi = new Promise(res => {
+    window.onSpotifyIframeApiReady = api => res(api);
+    const sc = document.createElement("script");
+    sc.src = "https://open.spotify.com/embed/iframe-api/v1"; sc.async = true; sc.onerror = () => res(null);
+    document.head.appendChild(sc);
+    setTimeout(() => res(null), 9000);
+  });
+  return embedApi;
+}
+async function embedPlay(id, uri) {
+  const box = document.getElementById("spEmbed");
+  const api = await loadEmbedApi();
+  if (!api || !box || S.current !== id) return false;
+  box.hidden = false;
+  if (embedCtl && embedCtl.__box === box) { embedCtl.loadUri(uri); embedCtl.play(); viaEmbed = true; return true; }
+  box.querySelector(".embedslot").innerHTML = "<div id=\"spEmbedEl\"></div>";
+  return new Promise(res => {
+    api.createController(document.getElementById("spEmbedEl"), { uri, width: "100%", height: 80 }, ctl => {
+      embedCtl = ctl; ctl.__box = box; viaEmbed = true;
+      ctl.addListener("ready", () => { try { ctl.play(); } catch (e) {} res(true); });
+      ctl.addListener("playback_update", e => { if (!viaEmbed) return; const d = e.data || {}; if (d.isBuffering) return; setPlayer(d.isPaused ? (player === "loading" ? "idle" : "paused") : "playing"); });
+    });
+    setTimeout(() => res(true), 6000);
+  });
+}
 async function spPlay(id) {
   setPlayer("loading");
   let step = "buscar";
@@ -516,8 +551,15 @@ async function spPlay(id) {
     if (S.current !== id) return;
     if (!uri) { spMsg = byId(id).tv ? "Spotify no tiene esta cortina; busco en iTunes y Deezer." : "Spotify no encontró esta canción; suena la vista previa."; paintSpMsg(); return itunesPlay(id); }
     step = "dispositivos";
-    const d = await spDevice();
-    if (!d) { spNoDevice = true; spLastUri = uri; spMsg = "Spotify no está abierto en el celular: suena la vista previa si existe."; paintSpMsg(); paintDevBox(); return itunesPlay(id); }
+    const d = spPhone ? null : await spDevice();
+    if (!d || spPhone) {
+      spNoDevice = !d; spLastUri = uri;
+      spMsg = "Sonando con Spotify en este celular" + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : "") + ". Si no parte, toca ▶ en la barra de Spotify.";
+      paintSpMsg(); paintDevBox();
+      const ok = await embedPlay(id, uri);
+      if (!ok) { spMsg = "No cargó el reproductor de Spotify; suena la vista previa."; paintSpMsg(); return itunesPlay(id); }
+      return;
+    }
     step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
     viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); paintDevBox(); setPlayer("playing");
@@ -535,7 +577,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
-  if (spOn() && !spBroken && !spNoDevice) return spPlay(id);
+  if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
 function itunesPlay(id) {
@@ -551,6 +593,7 @@ function itunesPlay(id) {
 }
 let viaSpotify = false;
 function toggleSong() {
+  if (viaEmbed && embedCtl) { embedCtl.togglePlay(); return; }
   if (viaSpotify) {
     if (player === "playing") { spApi("/me/player/pause", { method: "PUT" }).catch(() => {}); return setPlayer("paused"); }
     if (player === "paused") { spApi("/me/player/play", { method: "PUT" }).then(() => setPlayer("playing")).catch(() => startSong(S.current)); return; }
@@ -562,6 +605,8 @@ function toggleSong() {
 }
 // Spotify no se pausa entre turnos: si sigue sonando, el iPhone no "duerme" la app y el siguiente turno suena al tiro.
 function stopSong() {
+  if (embedCtl) { try { embedCtl.pause(); } catch (e) {} } viaEmbed = false;
+  const eb = document.getElementById("spEmbed"); if (eb) eb.hidden = true;
   audio.pause(); audio.removeAttribute("src"); try { audio.load(); } catch (e) {} player = "idle"; viaSpotify = false;
 }
 audio.addEventListener("ended", () => setPlayer("paused"));
@@ -640,6 +685,8 @@ function wireScore() {
 
 function render() {
   const s = S.screen;
+  const eb = document.getElementById("spEmbed");
+  if (eb) { if (s !== "play" && s !== "result" && !eb.hidden) stopSong(); eb.classList.toggle("masked", s === "play" && !S.revealed && S.current != null && !byId(S.current).tv); }
   if (s === "setup") return renderSetup();
   if (s === "handoff") return renderHandoff();
   if (s === "play" || s === "result") return renderPlay();
