@@ -352,7 +352,7 @@ function getPreview(id) {
 const TV_WORDS = ["teleserie", "telenovela", "banda sonora", "soundtrack", "original", "tema", "tvn", "canal 13", "mega", "chilevision", "cortina", "serie"];
 async function getTvTheme(id) {
   const s = byId(id), name = norm(s.t);
-  const ok = (...fields) => { const txt = norm(fields.filter(Boolean).join(" | ")); return txt.includes(name) && TV_WORDS.some(w => txt.includes(w)); };
+  const ok = (...fields) => { const txt = norm(fields.filter(Boolean).join(" | ")); return (" " + txt + " ").includes(" " + name + " ") && TV_WORDS.some(w => (" " + txt + " ").includes(" " + w + " ")); };
   const tries = [
     () => jsonp("https://itunes.apple.com/search?media=music&entity=song&limit=25&country=CL&term=" + encodeURIComponent(s.t + " teleserie"), "callback")
       .then(d => ((d && d.results) || []).find(r => r.previewUrl && ok(r.trackName, r.collectionName))).then(r => r && r.previewUrl),
@@ -419,6 +419,16 @@ async function spApi(path, opts = {}) {
 const spUris = {};
 async function spFind(id) {
   if (spUris[id] !== undefined) return spUris[id];
+  if (byId(id).tv) {
+    const s = byId(id), name = norm(s.t);
+    const ok = x => { const txt = norm([x.name, x.album && x.album.name].join(" | ")); return (" " + txt + " ").includes(" " + name + " ") && TV_WORDS.some(w => (" " + txt + " ").includes(" " + w + " ")); };
+    for (const q of [`${s.t} teleserie`, `album:${s.t}`, `${s.t} ${s.a} tema`]) {
+      const j = await spApi("/search?" + new URLSearchParams({ q, type: "track", limit: "10", market: "CL" }));
+      const m = ((j.tracks && j.tracks.items) || []).find(ok);
+      if (m) return (spUris[id] = m.uri);
+    }
+    return (spUris[id] = null);
+  }
   const s = byId(id), t = s.t.replace(/\(.*?\)/g, "").trim(), a = mainArtist(s.a);
   let j = await spApi("/search?" + new URLSearchParams({ q: `track:${t} artist:${a}`, type: "track", limit: "5", market: "CL" }));
   let items = (j.tracks && j.tracks.items) || [];
@@ -440,7 +450,7 @@ async function spPlay(id) {
   try {
     const uri = await spFind(id);
     if (S.current !== id) return;
-    if (!uri) { spMsg = "Spotify no encontró esta canción; suena la vista previa."; return itunesPlay(id); }
+    if (!uri) { spMsg = byId(id).tv ? "Spotify no tiene esta cortina; busco en iTunes y Deezer." : "Spotify no encontró esta canción; suena la vista previa."; paintSpMsg(); return itunesPlay(id); }
     step = "dispositivos";
     const d = await spDevice();
     if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
@@ -461,7 +471,6 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
-  if (byId(id).tv) return itunesPlay(id);
   if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
@@ -683,7 +692,7 @@ function renderPlay() {
       <span class="a">${esc(song.a)}</span>
       ${song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Ver la cortina en YouTube") : blind ? "" : playBtn}
       ${song.tv ? "" : listen}
-      ${spOn() && !blind && !song.tv ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
+      ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
     ${cover}
   </section>
