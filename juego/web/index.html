@@ -283,27 +283,44 @@ audio.preload = "auto";
 const previews = {};
 const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 const mainArtist = a => a.split(/ ft\. | & | y |, /)[0];
+function jsonp(url, cbParam) {
+  return new Promise(res => {
+    const cb = "jp" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
+    const sc = document.createElement("script");
+    const done = d => { clearTimeout(t); window[cb] = () => {}; sc.remove(); res(d); };
+    const t = setTimeout(() => done(null), 6000);
+    window[cb] = d => done(d);
+    sc.onerror = () => done(null);
+    sc.src = url + (url.includes("?") ? "&" : "?") + cbParam + "=" + cb;
+    document.head.appendChild(sc);
+  });
+}
+let audioDiag = "";
+function pick(list, artistOf, titleOf, s) {
+  const a = norm(mainArtist(s.a)), title = norm(s.t.replace(/\(.*?\)/g, "")).split(" ").slice(0, 2).join(" ");
+  return list.find(r => norm(artistOf(r)).includes(a) && norm(titleOf(r)).includes(title)) || list.find(r => norm(artistOf(r)).includes(a)) || list[0];
+}
 function getPreview(id) {
   if (id == null) return Promise.resolve(null);
   if (previews[id] !== undefined) return Promise.resolve(previews[id]);
   if (previews["p" + id]) return previews["p" + id];
   const s = byId(id);
-  previews["p" + id] = new Promise(res => {
-    const cb = "itcb" + id + "_" + Math.floor(Math.random() * 1e6);
-    const sc = document.createElement("script");
-    const done = url => { clearTimeout(t); window[cb] = () => {}; sc.remove(); previews[id] = url; res(url); };
-    const t = setTimeout(() => done(null), 7000);
-    window[cb] = d => {
-      const rs = ((d && d.results) || []).filter(r => r.previewUrl);
-      const a = norm(mainArtist(s.a)), title = norm(s.t.replace(/\(.*?\)/g, "")).split(" ").slice(0, 2).join(" ");
-      const m = rs.find(r => norm(r.artistName).includes(a) && norm(r.trackName).includes(title)) || rs.find(r => norm(r.artistName).includes(a)) || rs[0];
-      done(m ? m.previewUrl : null);
-    };
-    sc.onerror = () => done(null);
-    const term = s.t.replace(/\(.*?\)/g, "").replace(/[^\p{L}\p{N}' ]/gu, " ") + " " + mainArtist(s.a);
-    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=15&country=CL&term=" + encodeURIComponent(term) + "&callback=" + cb;
-    document.head.appendChild(sc);
-  });
+  const t = s.t.replace(/\(.*?\)/g, "").replace(/[^\p{L}\p{N}' ]/gu, " ").replace(/\s+/g, " ").trim(), a = mainArtist(s.a);
+  previews["p" + id] = (async () => {
+    // 1) iTunes
+    const it = await jsonp("https://itunes.apple.com/search?media=music&entity=song&limit=15&country=CL&term=" + encodeURIComponent(t + " " + a), "callback");
+    const itl = ((it && it.results) || []).filter(r => r.previewUrl);
+    let m = itl.length && pick(itl, r => r.artistName, r => r.trackName, s);
+    if (m) return (previews[id] = m.previewUrl);
+    // 2) Deezer
+    const dz = await jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(`artist:"${a}" track:"${t}"`), "callback");
+    let dzl = ((dz && dz.data) || []).filter(r => r.preview);
+    if (!dzl.length) { const dz2 = await jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(t + " " + a), "callback"); dzl = ((dz2 && dz2.data) || []).filter(r => r.preview); }
+    m = dzl.length && pick(dzl, r => r.artist && r.artist.name, r => r.title, s);
+    if (m) return (previews[id] = m.preview);
+    audioDiag = "iTunes: " + (it ? "sin resultados" : "no respondió") + " · Deezer: " + (dz ? "sin resultados" : "no respondió");
+    return (previews[id] = null);
+  })();
   return previews["p" + id];
 }
 let player = "idle"; // idle | loading | playing | paused | none
@@ -315,7 +332,7 @@ function paintPlayer() {
   if (!b) return;
   b.disabled = player === "loading";
   b.textContent = { idle: "▶ Escuchar", loading: "Cargando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: "Sin audio · usa YouTube" }[player];
-  if (player === "none") b.disabled = true;
+  if (player === "none") { b.disabled = true; const pg = b.parentNode.querySelector(".prog"); if (pg && audioDiag) { pg.outerHTML = `<small class="diag" style="opacity:.85">${esc(audioDiag)}</small>`; } }
 }
 // ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
 const SP_CLIENT_ID = "00bd8bb464364a608083117160cab690";
@@ -373,19 +390,25 @@ async function spDevice() {
   if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
   return d || null;
 }
-let spMsg = "";
+let spMsg = "", spBroken = false;
 async function spPlay(id) {
   setPlayer("loading");
+  let step = "buscar";
   try {
     const uri = await spFind(id);
     if (S.current !== id) return;
     if (!uri) { spMsg = "Spotify no encontró esta canción; suena la vista previa."; return itunesPlay(id); }
+    step = "dispositivos";
     const d = await spDevice();
     if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
+    step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
     viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name; paintSpMsg(); setPlayer("playing");
   } catch (e) {
-    spMsg = e.status === 404 ? "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí." : e.status === 403 ? "Spotify no permitió reproducir (¿cuenta Premium?). Suena la vista previa." : "Spotify falló (" + e.message + "). Suena la vista previa.";
+    e.step = step;
+    if (e.status !== 404) spBroken = true;
+    spMsg = e.status === 404 ? "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."
+      : "Spotify rechazó [" + (e.step || "?") + "] " + (e.status || "") + ": " + e.message + (e.reason ? " (" + e.reason + ")" : "") + ". Suena la vista previa.";
     paintSpMsg();
     if (e.status === 404) return setPlayer("idle");
     itunesPlay(id);
@@ -395,7 +418,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
-  if (spOn()) return spPlay(id);
+  if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
 function itunesPlay(id) {
