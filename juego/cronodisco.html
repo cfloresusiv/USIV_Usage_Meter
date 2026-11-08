@@ -287,7 +287,9 @@ const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const byId = id => SONGS[id];
-const yt = s => "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.tv ? `teleserie ${s.t} ${s.a} cortina` : s.t + " " + s.a);
+const yt = s => s.tv
+  ? "https://www.google.com/search?tbm=vid&q=" + encodeURIComponent(`cortina teleserie ${s.t} ${s.a}`)
+  : "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a) + "&sp=EgIQAQ%253D%253D";
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
 let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "oido" };
@@ -366,7 +368,7 @@ function paintPlayer() {
   if (!b) return;
   b.disabled = player === "loading";
   const tv = S.current != null && byId(S.current) && byId(S.current).tv;
-  b.textContent = { idle: tv ? "▶ Escuchar la cortina" : "▶ Escuchar", loading: "Buscando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: tv ? "Sin cortina aquí · usa YouTube" : "Sin audio · usa YouTube" }[player];
+  b.textContent = { idle: tv ? "▶ Escuchar la cortina" : "▶ Escuchar", loading: "Buscando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: tv ? "Sin cortina aquí · busca el video abajo" : "Sin audio · usa YouTube" }[player];
   if (player === "none") { b.disabled = true; const pg = b.parentNode.querySelector(".prog"); if (pg && audioDiag) { pg.outerHTML = `<small class="diag" style="opacity:.85">${esc(audioDiag)}</small>`; } }
 }
 // ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
@@ -682,7 +684,7 @@ function renderPlay() {
       ${song.tv ? `<span class="label" style="color:#fff">Teleserie chilena</span>` : ""}
       <span class="t">${esc(song.t)}</span>${song.cl && !song.tv ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Ver la cortina en YouTube") : blind ? "" : playBtn}
+      ${song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Buscar el video de la cortina") : blind ? "" : playBtn}
       ${song.tv ? "" : listen}
       ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
