@@ -463,7 +463,7 @@ async function spShowDevices() {
     document.getElementById("spHere").onclick = usePhone;
     box.querySelectorAll("[data-dev]").forEach(b => b.onclick = async () => {
       SPT.device = { id: b.dataset.dev, name: b.dataset.name, chosen: true }; spSave();
-      if (spBroken || !viaSpotify) { spBroken = false; stopSong(); paintDevBox(); return startSong(S.current); }
+      if (spBroken || spNoDevice || !viaSpotify) { spBroken = false; spNoDevice = false; stopSong(); paintDevBox(); return startSong(S.current); }
       try { await spApi("/me/player", { method: "PUT", body: JSON.stringify({ device_ids: [b.dataset.dev], play: player === "playing" }) }); } catch (e) {}
       spMsg = "Sonando en Spotify · " + b.dataset.name; paintSpMsg(); paintDevBox();
     });
@@ -478,7 +478,8 @@ function usePhone() {
 function paintDevBox() {
   const box = document.getElementById("spDevBox");
   if (!box) return;
-  box.innerHTML = `<span class="muted">Suena en: <b>${spBroken ? "este celular (vista previa)" : esc(SPT.device ? SPT.device.name : "tu celular")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
+  const openUrl = spLastUri ? "https://open.spotify.com/track/" + spLastUri.split(":").pop() : "https://open.spotify.com/";
+  box.innerHTML = spNoDevice ? `<span class="muted"><b>Spotify está cerrado en tu iPhone.</b> Ábrelo con este botón, dale play y vuelve aquí: desde el siguiente turno todo suena completo.</span><a class="btn small sp" href="${openUrl}" target="_blank" rel="noopener" style="text-decoration:none">▶ Tocar en Spotify</a> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>` : `<span class="muted">Suena en: <b>${spBroken ? "este celular (vista previa)" : esc(SPT.device ? SPT.device.name : "tu celular")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
   document.getElementById("spDevBtn").onclick = spShowDevices;
 }
 async function spDevice() {
@@ -489,7 +490,8 @@ async function spDevice() {
   if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
   return d || null;
 }
-let spMsg = "", spBroken = false;
+let spMsg = "", spBroken = false, spNoDevice = false, spLastUri = null;
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && spNoDevice) { spNoDevice = false; paintDevBox(); if (player === "none") setPlayer("idle"); } });
 async function spPlay(id) {
   setPlayer("loading");
   let step = "buscar";
@@ -499,7 +501,7 @@ async function spPlay(id) {
     if (!uri) { spMsg = byId(id).tv ? "Spotify no tiene esta cortina; busco en iTunes y Deezer." : "Spotify no encontró esta canción; suena la vista previa."; paintSpMsg(); return itunesPlay(id); }
     step = "dispositivos";
     const d = await spDevice();
-    if (!d) { spBroken = true; spMsg = "Suena aquí (vista previa). Para la canción completa abre Spotify en el iPhone y elige tu celular en \"Cambiar dónde suena\"."; paintSpMsg(); paintDevBox(); return itunesPlay(id); }
+    if (!d) { spNoDevice = true; spLastUri = uri; spMsg = "Spotify no está abierto en el celular: suena la vista previa si existe."; paintSpMsg(); paintDevBox(); return itunesPlay(id); }
     step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
     viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); paintDevBox(); setPlayer("playing");
@@ -517,7 +519,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
-  if (spOn() && !spBroken) return spPlay(id);
+  if (spOn() && !spBroken && !spNoDevice) return spPlay(id);
   itunesPlay(id);
 }
 function itunesPlay(id) {
