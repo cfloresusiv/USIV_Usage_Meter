@@ -125,6 +125,11 @@ body:has(#spEmbed:not([hidden])) .wrap { padding-bottom: 120px; }
 .embedbox iframe { display: block; border: 0; }
 .embedmask { display: none; }
 .embedbox.masked .embedmask { display: flex; align-items: center; padding: 0 14px; position: absolute; left: 0; top: 0; bottom: 0; right: 72px; background: linear-gradient(135deg, var(--pink), #8c3cff); color: #fff; font-weight: 700; font-size: .9rem; z-index: 2; }
+.mystery.blind.dj { min-height: 400px; }
+.djbox { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; margin-top: 6px; }
+.qr { background: #fff; padding: 10px; border-radius: 12px; line-height: 0; }
+.qr img, .qr canvas { display: block; width: 176px; height: 176px; }
+.btn.play.sp { background: #1ed760; color: #04210f; }
 .devbox { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .devbox:empty { display: none; }
 .devs { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -185,6 +190,7 @@ footer { text-align: center; font-size: .8rem; color: var(--muted); }
 <main class="wrap" id="app"></main>
 <div class="embedbox" id="spEmbed" hidden><div class="embedslot"></div><div class="embedmask">Escucha y adivina · el título aparece al final</div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const VINYL = (label) => `<svg class="vinyl" viewBox="0 0 100 100" aria-hidden="true">
   <circle cx="50" cy="50" r="49" fill="#0d0a18"/>
@@ -307,6 +313,7 @@ const byId = id => SONGS[id];
 const yt = s => s.tv
   ? "https://www.google.com/search?tbm=vid&q=" + encodeURIComponent(`cortina teleserie ${s.t} ${s.a}`)
   : "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a) + "&sp=EgIQAQ%253D%253D";
+const spSearch = s => "https://open.spotify.com/search/" + encodeURIComponent(s.tv ? `${s.t} teleserie` : `${s.t} ${mainArtist(s.a)}`);
 const sp = s => "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a);
 
 let S = load() || { screen: "setup", names: ["Jugador 1", "Jugador 2", "Jugador 3"], goal: 10, mode: "oido" };
@@ -577,6 +584,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
+  if (S.fuente === "dj") return;
   if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
@@ -711,6 +719,11 @@ function renderSetup() {
           <option value="abierto" ${S.mode === "abierto" ? "selected" : ""}>Abierto</option>
           <option value="oido" ${S.mode === "oido" ? "selected" : ""}>A ciegas (solo escuchas)</option>
         </select></label>
+      <label style="grid-column:1/-1"><span class="label">Música</span>
+        <select id="fuente">
+          <option value="auto" ${S.fuente !== "dj" ? "selected" : ""}>Suena en este celular</option>
+          <option value="dj" ${S.fuente === "dj" ? "selected" : ""}>Spotify de los jugadores (código QR)</option>
+        </select></label>
       <label style="grid-column:1/-1"><span class="label">Mazo</span>
         <select id="mazo">
           <option value="chile40" ${S.mazo === "chile40" ? "selected" : ""}>Edición Chile · Los 40</option>
@@ -719,7 +732,7 @@ function renderSetup() {
           <option value="todo" ${S.mazo === "todo" ? "selected" : ""}>Todas las épocas (música)</option>
         </select></label>
     </div>
-    ${SP_CLIENT_ID ? `<div class="spbox">
+    ${SP_CLIENT_ID && !(S.fuente === "dj") ? `<div class="spbox">
       <span class="label">Música</span>
       ${spOn() ? `<p><b>Spotify conectado.</b> Las canciones suenan completas en tu Spotify${SPT.device ? " (" + esc(SPT.device.name) + ")" : ""}. Deja la app de Spotify abierta en segundo plano.</p>
         <button class="btn ghost small" id="spOut" type="button">Desconectar Spotify</button>`
@@ -733,7 +746,7 @@ function renderSetup() {
     <span class="label">Cómo se juega</span>
     <ol class="rules">
       <li>Cada jugador empieza con <b>una canción con su año</b> en su línea de tiempo.</li>
-      <li>En tu turno suena un disco misterioso (30 segundos). En modo <b>a ciegas</b> solo lo escuchas: el título aparece al final.</li>
+      <li>En tu turno suena un disco misterioso. En modo <b>a ciegas</b> solo lo escuchas: el título aparece al final. Con <b>Spotify de los jugadores</b>, otra persona (el DJ) escanea el código QR y la pone en su Spotify.</li>
       <li>Toca el hueco donde crees que va: <b>antes, entre o después</b> de tus canciones.</li>
       <li>Si aciertas, la carta se queda. Si fallas, se va a la basura.</li>
       <li>Apuesta el <b>año exacto</b> y, si lo clavas, ganas una ficha ●. Gasta fichas para cambiar una canción que no conoces.</li>
@@ -748,6 +761,7 @@ function renderSetup() {
   document.getElementById("goal").onchange = e => { S.goal = +e.target.value; save(); };
   document.getElementById("mode").onchange = e => { S.mode = e.target.value; save(); };
   document.getElementById("mazo").onchange = e => { S.mazo = e.target.value; save(); render(); };
+  document.getElementById("fuente").onchange = e => { S.fuente = e.target.value; save(); render(); };
   document.getElementById("start").onclick = newGame;
   const spIn = document.getElementById("spIn"), spOut = document.getElementById("spOut");
   if (spIn) spIn.onclick = spLogin;
@@ -764,12 +778,18 @@ function renderHandoff() {
     <button class="btn" id="go">Estoy listo</button>
     <div class="devbox" id="spCheck" style="max-width:420px"></div>
   </div>`;
-  getPreview(S.current);
-  spPrecheck();
+  if (!(S.fuente === "dj")) { getPreview(S.current); spPrecheck(); }
   document.getElementById("go").onclick = () => { S.screen = "play"; S.editing = null; save(); render(); startSong(S.current); };
   wireScore();
 }
 
+function drawQR(url) {
+  const el = document.getElementById("qr");
+  if (!el) return;
+  el.innerHTML = "";
+  if (window.QRCode) new QRCode(el, { text: url, width: 176, height: 176, colorDark: "#15102a", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+  else el.innerHTML = `<small>No cargó el código QR. Usa el enlace: ${esc(url)}</small>`;
+}
 function renderPlay() {
   const p = S.players[S.turn];
   const song = byId(S.current);
@@ -779,7 +799,13 @@ function renderPlay() {
   const playBtn = `<button class="btn play" id="playBtn" type="button">▶ Escuchar</button><div class="prog" aria-hidden="true"><i id="progBar"></i></div>`;
   const blind = !S.revealed && !res && !song.tv;
   const tvBtn = `<a class="btn play" href="${yt(song)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">▶ Ver la cortina</a>`;
-  const cover = blind ? `<div class="cover">
+  const dj = S.fuente === "dj";
+  const djOpen = `<div class="djbox"><div class="qr" id="qr"></div><a class="btn play sp" href="${spSearch(song)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">▶ Abrir en Spotify</a></div>`;
+  const cover = blind && dj ? `<div class="cover">
+      <p><b>DJ:</b> escanea el código con la cámara de tu celular y pon la canción en tu Spotify. El jugador no mira.</p>
+      <div class="qr" id="qr"></div>
+      <button class="linkish" id="reveal" type="button">Me rindo: mostrar título</button>
+    </div>` : blind ? `<div class="cover">
       ${VINYL(p.color)}
       <p><b>¿De qué año es?</b> Escucha y colócala en tu línea. El título aparece al final.</p>
       ${playBtn}
@@ -796,15 +822,15 @@ function renderPlay() {
 
   app.innerHTML = `${scoreboard()}
   <div class="turn"><h2>Turno de <span style="color:${p.color}">${esc(p.name)}</span></h2><span class="muted">${S.deck.length} discos en la pila</span></div>
-  <section class="mystery ${blind ? "blind" : ""}" aria-live="polite">
+  <section class="mystery ${blind ? "blind" : ""} ${dj ? "dj" : ""}" aria-live="polite">
     ${VINYL(p.color)}
     <div class="info">
       <span class="q">${res ? song.y : "¿ ? ? ? ?"}</span>
       ${song.tv ? `<span class="label" style="color:#fff">Teleserie chilena</span>` : ""}
       <span class="t">${esc(song.t)}</span>${song.cl && !song.tv ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Buscar el video de la cortina") : blind ? "" : playBtn}
-      ${song.tv ? "" : listen}
+      ${dj ? (blind ? "" : djOpen) : song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Buscar el video de la cortina") : blind ? "" : playBtn}
+      ${song.tv || dj ? "" : listen}
       ${spOn() && !blind ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
     ${cover}
@@ -823,7 +849,7 @@ function renderPlay() {
       <button class="btn" id="place" ${S.slot === null ? "disabled" : ""}>${S.slot === null ? "Elige un hueco abajo" : "Colocar aquí"}</button>
       <button class="btn ghost" id="skip" ${p.tokens < 1 ? "disabled" : ""}>Cambiar (● 1)</button>
     </div>`}
-  ${spOn() ? `<div class="devbox" id="spDevBox"></div>` : ""}
+  ${spOn() && !dj ? `<div class="devbox" id="spDevBox"></div>` : ""}
   <span class="label">Tu línea de tiempo</span>
   <div class="tl ${res ? "locked" : ""}">${tlHtml}</div>
   <button class="btn ghost small" id="quit">Terminar partida</button>`;
@@ -835,9 +861,10 @@ function renderPlay() {
   on("next", "onclick", next);
   on("reveal", "onclick", () => { S.revealed = true; save(); render(); });
   on("playBtn", "onclick", toggleSong);
+  if (dj) drawQR(spSearch(song));
   paintDevBox();
   paintPlayer();
-  if (!previews[S.current]) getPreview(S.current).then(() => { if (player === "idle") paintPlayer(); });
+  if (!(S.fuente === "dj") && !previews[S.current]) getPreview(S.current).then(() => { if (player === "idle") paintPlayer(); });
   on("bet", "onchange", e => { S.bet = e.target.checked; save(); render(); });
   on("betYear", "oninput", e => { S.betYear = e.target.value; save(); });
   on("quit", "onclick", () => { S.screen = "setup"; save(); render(); });
