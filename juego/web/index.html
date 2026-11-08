@@ -329,7 +329,7 @@ function getPreview(id) {
   if (previews[id] !== undefined) return Promise.resolve(previews[id]);
   if (previews["p" + id]) return previews["p" + id];
   const s = byId(id);
-  if (s.tv) return Promise.resolve(null);
+  if (s.tv) return (previews["p" + id] = getTvTheme(id));
   const t = s.t.replace(/\(.*?\)/g, "").replace(/[^\p{L}\p{N}' ]/gu, " ").replace(/\s+/g, " ").trim(), a = mainArtist(s.a);
   previews["p" + id] = (async () => {
     // 1) iTunes
@@ -348,6 +348,23 @@ function getPreview(id) {
   })();
   return previews["p" + id];
 }
+// Cortina de teleserie: solo se acepta si el disco/tema nombra la teleserie y además dice que es de TV.
+const TV_WORDS = ["teleserie", "telenovela", "banda sonora", "soundtrack", "original", "tema", "tvn", "canal 13", "mega", "chilevision", "cortina", "serie"];
+async function getTvTheme(id) {
+  const s = byId(id), name = norm(s.t);
+  const ok = (...fields) => { const txt = norm(fields.filter(Boolean).join(" | ")); return txt.includes(name) && TV_WORDS.some(w => txt.includes(w)); };
+  const tries = [
+    () => jsonp("https://itunes.apple.com/search?media=music&entity=song&limit=25&country=CL&term=" + encodeURIComponent(s.t + " teleserie"), "callback")
+      .then(d => ((d && d.results) || []).find(r => r.previewUrl && ok(r.trackName, r.collectionName))).then(r => r && r.previewUrl),
+    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.t + " teleserie"), "callback")
+      .then(d => ((d && d.data) || []).find(r => r.preview && ok(r.title, r.album && r.album.title))).then(r => r && r.preview),
+    () => jsonp("https://api.deezer.com/search?output=jsonp&q=" + encodeURIComponent(s.t + " " + s.a + " tema"), "callback")
+      .then(d => ((d && d.data) || []).find(r => r.preview && ok(r.title, r.album && r.album.title))).then(r => r && r.preview),
+  ];
+  for (const t of tries) { const u = await t().catch(() => null); if (u) return (previews[id] = u); }
+  audioDiag = "No encontré la cortina en iTunes ni Deezer.";
+  return (previews[id] = null);
+}
 let player = "idle"; // idle | loading | playing | paused | none
 function setPlayer(st) { player = st; paintPlayer(); }
 function paintPlayer() {
@@ -356,7 +373,8 @@ function paintPlayer() {
   if (m) m.classList.toggle("spin", player === "playing");
   if (!b) return;
   b.disabled = player === "loading";
-  b.textContent = { idle: "▶ Escuchar", loading: "Cargando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: "Sin audio · usa YouTube" }[player];
+  const tv = S.current != null && byId(S.current) && byId(S.current).tv;
+  b.textContent = { idle: tv ? "▶ Escuchar la cortina" : "▶ Escuchar", loading: "Buscando…", playing: "❚❚ Pausa", paused: "▶ Seguir", none: tv ? "Sin cortina aquí · usa YouTube" : "Sin audio · usa YouTube" }[player];
   if (player === "none") { b.disabled = true; const pg = b.parentNode.querySelector(".prog"); if (pg && audioDiag) { pg.outerHTML = `<small class="diag" style="opacity:.85">${esc(audioDiag)}</small>`; } }
 }
 // ---------- Spotify (Premium): reproduce la canción completa en el Spotify del usuario ----------
@@ -443,7 +461,7 @@ function paintSpMsg() { const el = document.getElementById("spMsg"); if (el) el.
 
 function startSong(id) {
   stopSong();
-  if (byId(id).tv) return;
+  if (byId(id).tv) return itunesPlay(id);
   if (spOn() && !spBroken) return spPlay(id);
   itunesPlay(id);
 }
@@ -663,7 +681,7 @@ function renderPlay() {
       ${song.tv ? `<span class="label" style="color:#fff">Teleserie chilena</span>` : ""}
       <span class="t">${esc(song.t)}</span>${song.cl && !song.tv ? `<span class="label" style="color:#fff">Hecho en Chile</span>` : ""}
       <span class="a">${esc(song.a)}</span>
-      ${song.tv ? tvBtn : blind ? "" : playBtn}
+      ${song.tv ? playBtn + tvBtn.replace('class="btn play"', 'class="btn ghost small"').replace("▶ Ver la cortina", "Ver la cortina en YouTube") : blind ? "" : playBtn}
       ${song.tv ? "" : listen}
       ${spOn() && !blind && !song.tv ? `<small id="spMsg" style="opacity:.85">${esc(spMsg)}</small>` : ""}
     </div>
