@@ -365,19 +365,19 @@ const SP_REDIRECT = location.origin + location.pathname;
 const SP_KEY = "cronodisco-spotify";
 let SPT = (() => { try { return JSON.parse(localStorage.getItem(SP_KEY)) || null; } catch (e) { return null; } })();
 const spSave = () => { try { SPT ? localStorage.setItem(SP_KEY, JSON.stringify(SPT)) : localStorage.removeItem(SP_KEY); } catch (e) {} };
-const spOn = () => !!(SP_CLIENT_ID && SPT && SPT.refresh);
+const spOn = () => !!(SP_CLIENT_ID && SPT && SPT.refresh && SPT.v === 2);
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 async function spLogin() {
   const v = b64url(crypto.getRandomValues(new Uint8Array(48)));
   try { localStorage.setItem(SP_KEY + "-v", v); } catch (e) {}
   const ch = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
-  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({ client_id: SP_CLIENT_ID, response_type: "code", redirect_uri: SP_REDIRECT, code_challenge_method: "S256", code_challenge: ch, scope: "user-modify-playback-state user-read-playback-state" });
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({ client_id: SP_CLIENT_ID, response_type: "code", redirect_uri: SP_REDIRECT, code_challenge_method: "S256", code_challenge: ch, scope: "user-modify-playback-state user-read-playback-state user-read-private" });
 }
 async function spToken(params) {
   const r = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: SP_CLIENT_ID, ...params }) });
   const j = await r.json();
   if (!j.access_token) throw new Error(j.error_description || "Spotify no respondió");
-  SPT = { access: j.access_token, refresh: j.refresh_token || (SPT && SPT.refresh), exp: Date.now() + (j.expires_in - 60) * 1000, device: SPT && SPT.device };
+  SPT = { v: 2, access: j.access_token, refresh: j.refresh_token || (SPT && SPT.refresh), exp: Date.now() + (j.expires_in - 60) * 1000, device: SPT && SPT.device };
   spSave();
 }
 async function spHandleRedirect() {
@@ -402,9 +402,9 @@ const spUris = {};
 async function spFind(id) {
   if (spUris[id] !== undefined) return spUris[id];
   const s = byId(id), t = s.t.replace(/\(.*?\)/g, "").trim(), a = mainArtist(s.a);
-  let j = await spApi("/search?" + new URLSearchParams({ q: `track:${t} artist:${a}`, type: "track", limit: "5", market: "from_token" }));
+  let j = await spApi("/search?" + new URLSearchParams({ q: `track:${t} artist:${a}`, type: "track", limit: "5", market: "CL" }));
   let items = (j.tracks && j.tracks.items) || [];
-  if (!items.length) { j = await spApi("/search?" + new URLSearchParams({ q: t + " " + a, type: "track", limit: "5", market: "from_token" })); items = (j.tracks && j.tracks.items) || []; }
+  if (!items.length) { j = await spApi("/search?" + new URLSearchParams({ q: t + " " + a, type: "track", limit: "5", market: "CL" })); items = (j.tracks && j.tracks.items) || []; }
   const m = items.find(x => x.artists.some(ar => norm(ar.name).includes(norm(a)) || norm(a).includes(norm(ar.name)))) || items[0];
   return (spUris[id] = m ? m.uri : null);
 }
