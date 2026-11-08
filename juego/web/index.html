@@ -418,17 +418,26 @@ async function spApi(path, opts = {}) {
   if (!r.ok) { const e = new Error((j.error && j.error.message) || r.status); e.status = r.status; e.reason = j.error && j.error.reason; throw e; }
   return j;
 }
-const spUris = {};
+const spUris = {}, spLoose = {};
 async function spFind(id) {
   if (spUris[id] !== undefined) return spUris[id];
   if (byId(id).tv) {
     const s = byId(id), name = norm(s.t);
-    const ok = x => { const txt = norm([x.name, x.album && x.album.name].join(" | ")); return (" " + txt + " ").includes(" " + name + " ") && TV_WORDS.some(w => (" " + txt + " ").includes(" " + w + " ")); };
-    for (const q of [`${s.t} teleserie`, `album:${s.t}`, `${s.t} ${s.a} tema`]) {
+    const txtOf = x => " " + norm([x.name, x.album && x.album.name].join(" | ")) + " ";
+    const hasName = x => txtOf(x).includes(" " + name + " ");
+    const strict = x => hasName(x) && TV_WORDS.some(w => txtOf(x).includes(" " + w + " "));
+    const results = [];
+    for (const q of [`${s.t} teleserie`, `tema teleserie ${s.t} ${s.a}`, `album:${s.t}`]) {
       const j = await spApi("/search?" + new URLSearchParams({ q, type: "track", limit: "10", market: "CL" }));
-      const m = ((j.tracks && j.tracks.items) || []).find(ok);
+      const items = (j.tracks && j.tracks.items) || [];
+      results.push(items);
+      const m = items.find(strict);
       if (m) return (spUris[id] = m.uri);
     }
+    const loose = results.flat().find(hasName);
+    if (loose) return (spUris[id] = loose.uri);
+    const first = results[0][0] || results[1][0];
+    if (first) { spLoose[id] = true; return (spUris[id] = first.uri); }
     return (spUris[id] = null);
   }
   const s = byId(id), t = s.t.replace(/\(.*?\)/g, "").trim(), a = mainArtist(s.a);
@@ -458,7 +467,7 @@ async function spPlay(id) {
     if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
     step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
-    viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name; paintSpMsg(); setPlayer("playing");
+    viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); setPlayer("playing");
   } catch (e) {
     e.step = step;
     if (e.status !== 404) spBroken = true;
