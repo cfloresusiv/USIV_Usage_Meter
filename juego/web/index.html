@@ -120,6 +120,9 @@ button.chip { color: var(--fg); font: inherit; font-size: .9rem; cursor: pointer
 .btn.play[disabled] { opacity: .8; }
 .prog { height: 4px; width: 100%; max-width: 220px; background: rgba(255,255,255,.25); border-radius: 4px; overflow: hidden; }
 .prog i { display: block; height: 100%; width: 0; background: #fff; transition: width .25s linear; }
+.devbox { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.devbox:empty { display: none; }
+.devs { display: flex; flex-wrap: wrap; gap: 8px; }
 .spbox { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 4px; border-top: 1px solid var(--line); }
 .btn.sp { background: #1ed760; color: #04210f; box-shadow: 0 4px 0 #13994a; }
 .linkish { background: none; border: 0; color: #fff; opacity: .8; text-decoration: underline; font-size: .85rem; }
@@ -444,13 +447,37 @@ async function spFind(id) {
   let j = await spApi("/search?" + new URLSearchParams({ q: `track:${t} artist:${a}`, type: "track", limit: "5", market: "CL" }));
   let items = (j.tracks && j.tracks.items) || [];
   if (!items.length) { j = await spApi("/search?" + new URLSearchParams({ q: t + " " + a, type: "track", limit: "5", market: "CL" })); items = (j.tracks && j.tracks.items) || []; }
-  const m = items.find(x => x.artists.some(ar => norm(ar.name).includes(norm(a)) || norm(a).includes(norm(ar.name)))) || items[0];
+  const m = items.find(x => (x.artists || []).some(ar => norm(ar.name).includes(norm(a)) || norm(a).includes(norm(ar.name)))) || items[0];
   return (spUris[id] = m ? m.uri : null);
+}
+// Selector de parlante: lista los dispositivos de Spotify y pasa la música al elegido
+async function spShowDevices() {
+  const box = document.getElementById("spDevBox");
+  if (!box) return;
+  box.innerHTML = `<span class="muted">Buscando dispositivos…</span>`;
+  try {
+    const ds = (await spApi("/me/player/devices")).devices || [];
+    if (!ds.length) { box.innerHTML = `<span class="muted">No veo dispositivos. Abre la app de Spotify en el celular o parlante, dale play a algo y vuelve a tocar.</span> <button class="btn ghost small" id="spDevAgain" type="button">Buscar otra vez</button>`; document.getElementById("spDevAgain").onclick = spShowDevices; return; }
+    const icon = t => ({ Smartphone: "Celular", Speaker: "Parlante", TV: "TV", Computer: "Computador", CastVideo: "Chromecast", CastAudio: "Chromecast" }[t] || t);
+    box.innerHTML = `<span class="label">¿Dónde suena?</span><div class="devs">${ds.map(d => `<button class="btn small ${SPT.device && d.id === SPT.device.id ? "" : "ghost"}" data-dev="${esc(d.id)}" data-name="${esc(d.name)}" type="button">${esc(d.name)} · ${esc(icon(d.type))}</button>`).join("")}</div>`;
+    box.querySelectorAll("[data-dev]").forEach(b => b.onclick = async () => {
+      SPT.device = { id: b.dataset.dev, name: b.dataset.name, chosen: true }; spSave();
+      try { await spApi("/me/player", { method: "PUT", body: JSON.stringify({ device_ids: [b.dataset.dev], play: player === "playing" }) }); } catch (e) {}
+      spMsg = "Sonando en Spotify · " + b.dataset.name; paintSpMsg(); paintDevBox();
+    });
+  } catch (e) { box.innerHTML = `<span class="muted">No pude leer tus dispositivos (${esc(e.message)}).</span>`; }
+}
+function paintDevBox() {
+  const box = document.getElementById("spDevBox");
+  if (!box) return;
+  box.innerHTML = `<span class="muted">Suena en: <b>${esc(SPT.device ? SPT.device.name : "tu Spotify")}</b></span> <button class="btn ghost small" id="spDevBtn" type="button">Cambiar dónde suena</button>`;
+  document.getElementById("spDevBtn").onclick = spShowDevices;
 }
 async function spDevice() {
   const j = await spApi("/me/player/devices");
   const ds = j.devices || [];
-  const d = ds.find(x => x.is_active) || ds.find(x => SPT.device && x.id === SPT.device.id) || ds.find(x => x.type === "Smartphone") || ds[0];
+  const d = ds.find(x => SPT.device && SPT.device.chosen && x.id === SPT.device.id) || ds.find(x => x.type === "Smartphone") || ds.find(x => x.is_active) || ds[0];
+  if (d && SPT.device && SPT.device.chosen && d.id === SPT.device.id) return d;
   if (d) { SPT.device = { id: d.id, name: d.name }; spSave(); }
   return d || null;
 }
@@ -467,7 +494,7 @@ async function spPlay(id) {
     if (!d) { spMsg = "Abre la app de Spotify, dale play a cualquier canción un segundo y vuelve aquí."; paintSpMsg(); return setPlayer("idle"); }
     step = "reproducir";
     await spApi("/me/player/play?device_id=" + encodeURIComponent(d.id), { method: "PUT", body: JSON.stringify({ uris: [uri] }) });
-    viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); setPlayer("playing");
+    viaSpotify = true; spMsg = "Sonando en Spotify · " + d.name + (spLoose[id] ? " (primer resultado; puede no ser la cortina exacta)" : ""); paintSpMsg(); paintDevBox(); setPlayer("playing");
   } catch (e) {
     e.step = step;
     if (e.status !== 404) spBroken = true;
@@ -721,6 +748,7 @@ function renderPlay() {
       <button class="btn" id="place" ${S.slot === null ? "disabled" : ""}>${S.slot === null ? "Elige un hueco abajo" : "Colocar aquí"}</button>
       <button class="btn ghost" id="skip" ${p.tokens < 1 ? "disabled" : ""}>Cambiar (● 1)</button>
     </div>`}
+  ${spOn() && !spBroken ? `<div class="devbox" id="spDevBox"></div>` : ""}
   <span class="label">Tu línea de tiempo</span>
   <div class="tl ${res ? "locked" : ""}">${tlHtml}</div>
   <button class="btn ghost small" id="quit">Terminar partida</button>`;
@@ -732,6 +760,7 @@ function renderPlay() {
   on("next", "onclick", next);
   on("reveal", "onclick", () => { S.revealed = true; save(); render(); });
   on("playBtn", "onclick", toggleSong);
+  paintDevBox();
   paintPlayer();
   if (!previews[S.current]) getPreview(S.current).then(() => { if (player === "idle") paintPlayer(); });
   on("bet", "onchange", e => { S.bet = e.target.checked; save(); render(); });
